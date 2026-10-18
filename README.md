@@ -4,6 +4,8 @@
 
 Aplicativo Windows local para organizar até quatro sessões do PokeIdle em painéis separados. O código público não contém a extensão de terceiros `/hunt for PokeIdle`.
 
+**Versão 1.1.0:** cada painel tem um botão **Sniper** que abre o Cockpit da Rotom Sniper 1.5.0 naquela conta. A abertura do Cockpit foi testada no aplicativo principal; regras de compra automática e resultados de mercado não foram validados pelo IdleBoard.
+
 ## Preparação inicial
 
 1. Instale o Node.js 24 ou superior, que já inclui o npm.
@@ -13,7 +15,7 @@ Aplicativo Windows local para organizar até quatro sessões do PokeIdle em pain
 
 ## Fluxo diário
 
-- `npm.cmd run dev`: abre o **IdleBoard Isgroi DEV** com a mesma economia de painéis ocultos da versão principal 1.0.9, faixa amarela e dados separados.
+- `npm.cmd run dev`: abre o **IdleBoard Isgroi DEV** com a mesma economia de painéis ocultos da versão principal, faixa amarela e dados separados.
 - `npm.cmd run dev:baseline`: abre o mesmo DEV com o comportamento anterior, para comparar. Feche uma janela DEV antes de abrir a outra.
 - `npm.cmd test`: executa os testes automatizados.
 - `npm.cmd run build`: valida o JavaScript e gera `dist/IdleBoard-Isgroi/IdleBoard-Isgroi.exe`.
@@ -21,15 +23,15 @@ Aplicativo Windows local para organizar até quatro sessões do PokeIdle em pain
 
 ## Publicação no GitHub
 
-O histórico público foi reconstruído a partir das cópias reais das versões 1.0.0, 1.0.1, 1.0.3, 1.0.5 e 1.0.6. Veja [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md): 1.0.2 e 1.0.4 não têm cópia verificada. O histórico privado antigo, que continha a extensão, ficou guardado **fora do projeto**. Não importe nem envie esse histórico e não use `git push --mirror` da cópia antiga. A versão 1.0.8 tem commit e tag locais; a 1.0.9 habilita a economia também no aplicativo principal, ainda como teste local com possibilidade de voltar à 1.0.8.
+O histórico público foi reconstruído a partir das cópias reais das versões 1.0.0, 1.0.1, 1.0.3, 1.0.5 e 1.0.6. Veja [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md): 1.0.2 e 1.0.4 não têm cópia verificada. O histórico privado antigo, que continha a extensão, ficou guardado **fora do projeto**. Não importe nem envie esse histórico e não use `git push --mirror` da cópia antiga.
 
-Depois de aprovar a 1.0.9 no aplicativo principal, confira as alterações no terminal do VS Code e faça o commit você mesmo:
+Para publicar uma alteração futura, confira os arquivos antes de fazer o commit:
 
 ```powershell
 git status
-git add app tests package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
+git add app tests scripts package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
 git diff --cached --name-only
-git commit -m "perf: optimize IdleBoard 1.0.9"
+git commit -m "descreva a alteração"
 ```
 
 Depois, gere o ZIP e publique a branch e **somente** a tag nova:
@@ -37,10 +39,10 @@ Depois, gere o ZIP e publique a branch e **somente** a tag nova:
 ```powershell
 npm.cmd run release
 git push origin main
-git push origin v1.0.9
+git push origin v1.1.0 # substitua pela tag da próxima versão
 ```
 
-O ZIP gerado fica em `releases/v1.0.9/` e não é enviado automaticamente ao GitHub. Antes de anexá-lo manualmente a uma Release, confira que não contém a extensão nem seus dados pessoais. A tag local `v1.0.8` também pode ser enviada separadamente com `git push origin v1.0.8`. Não publique os ZIPs históricos originais: alguns contêm a extensão. Se algum comando apresentar erro, pare e confira a mensagem antes de continuar.
+O ZIP gerado fica em `releases/v<versão>/` e não é enviado automaticamente ao GitHub. Antes de anexá-lo manualmente a uma Release, confira que não contém extensões nem dados pessoais. Não publique os ZIPs históricos originais: alguns contêm extensões. Se algum comando apresentar erro, pare e confira a mensagem antes de continuar.
 
 ## Dados privados
 
@@ -67,6 +69,12 @@ Uma instalação no DEV não instala automaticamente no aplicativo estável: as 
 
 Depois de instalada uma vez nessas pastas do Windows, a cópia local continua disponível ao trocar o executável por uma versão nova no mesmo computador. Um pen drive ou ZIP usado em **outro computador** não leva a pasta de dados junto: instale a sua cópia local novamente nesse computador. Nenhuma cópia da extensão entra no GitHub ou no ZIP público.
 
+## Rotom Sniper (opcional)
+
+A [Rotom Sniper 1.5.0 na Chrome Web Store](https://chromewebstore.google.com/detail/rotom-sniper-assistente-p/olccbpdjdkbfgondiiaicmlifhbcggmk) é opcional e não está neste repositório. Instale-a no Chrome e copie **somente os arquivos da extensão** de `Extensions\olccbpdjdkbfgondiiaicmlifhbcggmk\1.5.0_0` (o sufixo pode variar) para `%APPDATA%\IdleBoard Isgroi\extensions\rotom` no aplicativo principal e/ou `%APPDATA%\IdleBoard Isgroi DEV\extensions\rotom` no DEV. `manifest.json` deve ficar diretamente em `rotom`. Não copie cookies, perfil do Chrome ou dados de login.
+
+Abra o aplicativo e clique em **Sniper** no painel da conta desejada. A Rotom só é carregada nessa conta nesse momento; o jogo recarrega uma vez e o Cockpit abre com o auto-snipe pausado. Abrir o Cockpit não faz compra; porém a extensão oferece automações de mercado que podem executar ações no jogo se você as ativar. Confira as regras e os valores antes de habilitá-las. O IdleBoard não valida preços nem controla as compras feitas pela extensão.
+
 ## Nova versão
 
 Atualize o campo `version` em `package.json` e `app/package.json`, atualize também `package-lock.json` com `npm.cmd install --package-lock-only`, faça o commit e execute `npm.cmd run release`. O comando se recusa a criar uma release a partir de arquivos ainda não commitados. Publique somente a tag da versão nova; tags históricas de cópias privadas não devem ser enviadas.
@@ -77,6 +85,8 @@ Atualize o campo `version` em `package.json` e `app/package.json`, atualize tamb
 
 IdleBoard Isgroi is a local Windows app for arranging up to four separate PokeIdle sessions. The public source and Windows package do **not** bundle the third-party `/hunt for PokeIdle` extension.
 
+**Version 1.1.0:** each game panel has a **Sniper** button that opens Rotom Sniper 1.5.0's Cockpit for that account. Opening the Cockpit was tested in the main app; automatic purchase rules and market results have not been validated by IdleBoard.
+
 ### First-time setup
 
 1. Install Node.js 24 or newer (npm is included).
@@ -86,7 +96,7 @@ IdleBoard Isgroi is a local Windows app for arranging up to four separate PokeId
 
 ### Development workflow
 
-- `npm.cmd run dev` opens **IdleBoard Isgroi DEV** with the same hidden-panel throttling as main version 1.0.9, a yellow indicator, and separate data.
+- `npm.cmd run dev` opens **IdleBoard Isgroi DEV** with the same hidden-panel throttling as the main app, a yellow indicator, and separate data.
 - `npm.cmd run dev:baseline` opens the same DEV with the previous behavior for comparison. Close one DEV window before opening the other.
 - `npm.cmd test` runs the automated tests.
 - `npm.cmd run build` checks the JavaScript and creates `dist/IdleBoard-Isgroi/IdleBoard-Isgroi.exe`.
@@ -94,15 +104,15 @@ IdleBoard Isgroi is a local Windows app for arranging up to four separate PokeId
 
 ### GitHub publishing
 
-The public history was reconstructed from verified copies of versions 1.0.0, 1.0.1, 1.0.3, 1.0.5, and 1.0.6. Versions 1.0.2 and 1.0.4 are not tagged because no verified copies were available. See [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md). The old private history contained the third-party extension; do not import or push it. Version 1.0.8 has a local commit and tag; 1.0.9 enables throttling in the main app for local testing, with 1.0.8 kept for rollback.
+The public history was reconstructed from verified copies of versions 1.0.0, 1.0.1, 1.0.3, 1.0.5, and 1.0.6. Versions 1.0.2 and 1.0.4 are not tagged because no verified copies were available. See [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md). The old private history contained the third-party extension; do not import or push it.
 
-After approving 1.0.9 in the main app, review your changes in VS Code and make the commit yourself:
+For a future change, review the files in VS Code before committing:
 
 ```powershell
 git status
-git add app tests package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
+git add app tests scripts package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
 git diff --cached --name-only
-git commit -m "perf: optimize IdleBoard 1.0.9"
+git commit -m "describe the change"
 ```
 
 After the commit, create the ZIP and push the branch and its new tag:
@@ -110,10 +120,10 @@ After the commit, create the ZIP and push the branch and its new tag:
 ```powershell
 npm.cmd run release
 git push origin main
-git push origin v1.0.9
+git push origin v1.1.0 # replace with the next version tag
 ```
 
-The ZIP is not uploaded to GitHub automatically. Inspect it before attaching it to a GitHub Release. The local `v1.0.8` tag can also be pushed separately with `git push origin v1.0.8`. Do not publish the original historical ZIPs: some contain the third-party extension.
+The ZIP is not uploaded to GitHub automatically. Inspect it before attaching it to a GitHub Release. Do not publish the original historical ZIPs: some contain third-party extensions.
 
 ### Private data
 
@@ -137,6 +147,12 @@ To use your own copy with IdleBoard on Windows:
 DEV and stable use separate folders. If the extension is missing or fails to load, the game still works and IdleBoard shows a notice. To update or remove it, close IdleBoard and change only your personal copy outside this project. The original extension may behave differently from older adapted versions; report extension issues to its author.
 
 Once installed in these Windows data folders, the local copy remains available when you replace the executable on the same computer. A USB drive or ZIP opened on **another computer** does not carry those data folders: install your own local copy again there. The extension is never placed in GitHub or the public ZIP.
+
+### Optional Rotom Sniper
+
+[Rotom Sniper 1.5.0 on the Chrome Web Store](https://chromewebstore.google.com/detail/rotom-sniper-assistente-p/olccbpdjdkbfgondiiaicmlifhbcggmk) is optional and not in this repository. Install it in Chrome, then copy **only its extension files** from `Extensions\olccbpdjdkbfgondiiaicmlifhbcggmk\1.5.0_0` (the suffix may differ) to `%APPDATA%\IdleBoard Isgroi\extensions\rotom` for the main app and/or `%APPDATA%\IdleBoard Isgroi DEV\extensions\rotom` for DEV. Keep `manifest.json` directly inside `rotom`. Do not copy Chrome cookies, profile data, or logins.
+
+Open the app and click **Sniper** in the desired account's panel. Rotom is loaded only for that account on demand; the game reloads once and the Cockpit opens with auto-snipe paused. Opening it does not buy anything, but enabling the extension's automation may perform market actions. Review its rules and amounts before enabling it. IdleBoard does not verify prices or control purchases made by the extension.
 
 ### New versions
 

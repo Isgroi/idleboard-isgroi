@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.9
+IDLEBOARD ISGROI — 1.1.0
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR
@@ -8,6 +8,15 @@ COMEÇAR
 3. Clique em Contas / Adicionar conta. Escolha um nome para identificar o perfil.
 4. Entre na sua conta na página oficial do PokeIdle que aparece no painel.
 5. Repita para as outras contas. O modo Multi distribui até quatro jogos em quadrantes.
+
+ROTOM SNIPER (OPCIONAL)
+
+Se a Rotom 1.5.0 estiver instalada na pasta local do IdleBoard, selecione uma
+conta e clique em Sniper no cabeçalho do painel dela. Somente essa conta carregará a extensão; na primeira
+vez, o jogo recarrega e o auto-snipe fica pausado. O Cockpit pode executar
+compras se você ativar regras de automação. Revise as regras e os valores.
+A abertura do Cockpit foi testada no aplicativo principal. Regras de compra
+automática e resultados de mercado não foram validados pelo IdleBoard.
 
 Não é necessário instalar Node, Python ou contratar um serviço. O programa usa internet
 para acessar o próprio jogo. O código do painel funciona no seu computador.
@@ -236,9 +245,9 @@ operações repetidas. As mudanças reais de tamanho continuam atualizando as vi
 Foram verificados agrupamento de snapshots, ausência de atualizações após encerrar
 farm, Eco idempotente, contas ocupadas/desconectadas e avisos de confirmação.
 Essas são contagens sintéticas de operações, não medições de CPU/RAM no Windows.
-Nenhuma conta real foi usada no desenvolvimento. O executável Windows não foi executado
-neste ambiente Linux. O carregamento nativo da extensão e seus cálculos com sua conta
-conectada ainda precisam ser confirmados no seu PC.
+Nenhuma conta real foi usada nos testes automatizados. O executável Windows e a
+abertura do Cockpit da Rotom foram testados neste PC. Compras automáticas e
+cálculos da extensão ainda não foram validados.
 
 O pacote usa Electron 44.9.0 obtido da distribuição oficial e conferido por SHA-256.
 Não possui atualizador automático. Uma atualização do painel/runtime exige um novo pacote.

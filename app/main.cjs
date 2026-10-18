@@ -7,6 +7,7 @@ const { randomUUID } = require('node:crypto');
 const model = require('./model.cjs');
 const { createFarmTracker } = require('./farm-metrics.cjs');
 const { HUNT_VERSION, createHuntLoader } = require('./hunt-extension.cjs');
+const { ROTOM_VERSION, createRotomLoader } = require('./rotom-extension.cjs');
 const { gameBackgroundThrottling } = require('./performance-mode.cjs');
 
 const IS_DEV_MODE = process.env.IDLEBOARD_MODE === 'development';
@@ -23,6 +24,8 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
 const views = new Map();
 const runtime = Object.create(null);
 const farms = new Map();
+const rotomCockpits = new Map();
+const rotomPreparing = new Set();
 const navigationRequests = new WeakMap();
 const appliedViewGeometry = new WeakMap();
 const toolsState = { market: null, lives: null };
@@ -36,6 +39,7 @@ let saveTimer = null;
 let preferencesDirty = false;
 let quitting = false;
 let huntLoader;
+let rotomLoader;
 let requestedViewFocus = null;
 let stateUpdateTimer = null;
 
@@ -281,13 +285,83 @@ function navigateGame(id, { reload = false } = {}) {
   navigationRequests.set(view, request);
   // Register document_start / MAIN scripts before the game creates its socket.
   // Keep a cancelled/closed view from navigating when registration resolves.
-  return huntLoader.load(contents.session).then(result => {
+  return huntLoader.load(contents.session).then(hunt => {
     if (views.get(id) !== view || contents.isDestroyed() || navigationRequests.get(view) !== request) return;
-    runtime[id].hunt = result;
+    runtime[id].hunt = hunt;
     emit();
     if (reload && contents.getURL()) contents.reload();
     else return contents.loadURL(model.GAME_URL).catch(() => {});
   });
+}
+
+async function openRotomCockpit(id) {
+  const view = getView(id);
+  const existing = rotomCockpits.get(id);
+  if (existing && !existing.isDestroyed()) {
+    if (existing.isMinimized()) existing.restore();
+    existing.focus();
+    return;
+  }
+  const ses = view.webContents.session;
+  const wasLoaded = runtime[id]?.rotom?.status === 'loaded';
+  if (!wasLoaded && !fs.existsSync(path.join(app.getPath('userData'), 'extensions', 'rotom', 'manifest.json'))) {
+    throw new Error('Rotom não instalada neste computador.');
+  }
+  let target;
+  if (!wasLoaded) {
+    // Do not inject the extension into an already running game before its
+    // auto-sniper preference has been explicitly paused for this launch.
+    finishFarm(id, 'reload');
+    rotomPreparing.add(id);
+    try { await view.webContents.loadURL('about:blank'); }
+    catch { rotomPreparing.delete(id); throw new Error('Não foi possível preparar a conta para carregar a Rotom.'); }
+  }
+  try {
+    const result = await rotomLoader.load(ses);
+    if (views.get(id) !== view || view.webContents.isDestroyed()) return;
+    if (result.status !== 'loaded') throw new Error('Não foi possível carregar a Rotom nesta conta.');
+    target = `${result.url}cockpit.html`;
+    if (!wasLoaded) {
+      const setup = new BrowserWindow({ show: false, webPreferences: {
+        session: ses, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true,
+      } });
+      try {
+        await setup.loadURL(target);
+        const paused = await setup.webContents.executeJavaScript(`new Promise(resolve => {
+          chrome.storage.local.set({ rotom_sniper_enabled: false }, () => resolve(!chrome.runtime.lastError));
+        })`);
+        if (!paused) throw new Error('storage unavailable');
+      } catch {
+        try { ses.extensions.removeExtension(result.id); } catch {}
+        throw new Error('A Rotom não pôde iniciar com compras automáticas pausadas. Reabra o aplicativo para tentar novamente.');
+      } finally { if (!setup.isDestroyed()) setup.close(); }
+      runtime[id].rotom = { status: 'loaded', version: ROTOM_VERSION };
+      emit();
+    }
+  } catch (error) {
+    if (!wasLoaded && views.get(id) === view && !view.webContents.isDestroyed()) await navigateGame(id);
+    throw error;
+  } finally { rotomPreparing.delete(id); }
+  if (!wasLoaded) await navigateGame(id);
+  const cockpit = new BrowserWindow({
+    parent: window, width: 1160, height: 760, minWidth: 780, minHeight: 560,
+    title: `Rotom Sniper — ${getProfile(id).name}`,
+    webPreferences: {
+      session: view.webContents.session, nodeIntegration: false,
+      contextIsolation: true, sandbox: true, webSecurity: true,
+    },
+  });
+  rotomCockpits.set(id, cockpit);
+  cockpit.on('closed', () => rotomCockpits.delete(id));
+  cockpit.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  cockpit.webContents.on('will-navigate', (event, url) => {
+    if (url !== target) event.preventDefault();
+  });
+  try { await cockpit.loadURL(target); }
+  catch {
+    if (!cockpit.isDestroyed()) cockpit.close();
+    throw new Error('O Cockpit da Rotom não abriu nesta conta.');
+  }
 }
 
 function createGameView(id) {
@@ -303,7 +377,7 @@ function createGameView(id) {
     navigateOnDragDrop: false, spellcheck: false,
   } });
   views.set(id, view);
-  runtime[id] = { status: 'loading', errorMessage: null, stats: null, farm: null, notice: '', hunt: { status: huntLoader.enabled ? 'loading' : 'disabled', version: HUNT_VERSION } };
+  runtime[id] = { status: 'loading', errorMessage: null, stats: null, farm: null, notice: '', hunt: { status: huntLoader.enabled ? 'loading' : 'disabled', version: HUNT_VERSION }, rotom: { status: 'idle', version: ROTOM_VERSION } };
   view.setBackgroundColor('#0c1423');
   if (typeof view.setBorderRadius === 'function') view.setBorderRadius(8);
   view.setVisible(false);
@@ -323,6 +397,7 @@ function createGameView(id) {
     emit();
   });
   contents.on('will-navigate', (event, url) => {
+    if (url === 'about:blank' && rotomPreparing.has(id)) return;
     if (!model.allowedNavigation(url)) { event.preventDefault(); markBlocked(id); }
   });
   contents.on('will-redirect', (event, url, _inPlace, isMainFrame) => {
@@ -374,6 +449,8 @@ function createGameView(id) {
 }
 
 function closePanel(id, reason = 'panel_closed') {
+  const cockpit = rotomCockpits.get(id);
+  if (cockpit && !cockpit.isDestroyed()) cockpit.close();
   if (requestedViewFocus === id) requestedViewFocus = null;
   finishFarm(id, reason);
   const view = views.get(id);
@@ -441,6 +518,7 @@ async function performAction(action, payload) {
     case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); saveNeeded = false; break;
     case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); saveNeeded = false; break;
     case 'panel:focus': getView(p.id); selectAccount(p.id); break;
+    case 'rotom:open': await openRotomCockpit(p.id); saveNeeded = false; break;
     case 'focus:enter': enterFocus(p.id); break;
     case 'panel:zoom': {
       const profile = getProfile(p.id);
@@ -706,6 +784,7 @@ else {
     }
     applyLayoutZoom();
     huntLoader = createHuntLoader({ enabled: state.huntEnabled, directory: path.join(app.getPath('userData'), 'extensions', 'hunt') });
+    rotomLoader = createRotomLoader({ directory: path.join(app.getPath('userData'), 'extensions', 'rotom') });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'Aplicativo', submenu: [{ role: 'quit', label: 'Sair' }] },
       { label: 'Editar', submenu: [{ role: 'undo', label: 'Desfazer' }, { role: 'redo', label: 'Refazer' }, { type: 'separator' }, { role: 'cut', label: 'Recortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Colar' }, { role: 'selectAll', label: 'Selecionar tudo' }] },

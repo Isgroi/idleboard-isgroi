@@ -55,7 +55,7 @@
     {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
     {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.9', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.1.0', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -253,8 +253,8 @@
     const profiles=[state.profiles,state.openIds,state.focusedId];
     if(id==='profiles-dialog')drawChanged('profiles',[profiles,accountViewInputs()],renderProfiles,force);
     else if(id==='settings-dialog'){
-      const status=Object.entries(state.runtime).map(([key,r])=>[key,r.hunt?.status,r.status,r.stats?.loggedIn,r.stats?.status,r.stats?.economy,r.ecoNotice]);
-      drawChanged('settings',[profiles,state.huntEnabled,state.system?.huntEnabledAtStartup,status,pending.has('game:eco-all:')],()=>{renderHuntSettings();renderPerformanceSettings();},force);
+      const status=Object.entries(state.runtime).map(([key,r])=>[key,r.hunt?.status,r.rotom?.status,r.status,r.stats?.loggedIn,r.stats?.status,r.stats?.economy,r.ecoNotice]);
+      drawChanged('settings',[profiles,state.huntEnabled,state.system?.huntEnabledAtStartup,status,pending.has('game:eco-all:')],()=>{renderHuntSettings();renderRotomSettings();renderPerformanceSettings();},force);
     }else if(id==='farm-dialog'){
       const selectedFarm = state.profiles.some(p=>p.id===farmProfileId) ? farmProfileId : state.focusedId||state.profiles[0]?.id||null;
       // Live readings follow only the selected account. Comparing the trial
@@ -319,6 +319,13 @@
     else message='Aguardando o estado de carregamento da extensão.';
     $('#hunt-load-status').classList.toggle('warning',!isPreview&&(errors.length>0||missing.length>0));
     setHTML($('#hunt-load-status'),`${icon(!isPreview&&errors.length?'info':loading&&!isPreview?'clock':'info')}<span>${esc(message)}</span>`);
+  }
+  function renderRotomSettings() {
+    const states=state.openIds.map(id=>runtime(id).rotom?.status).filter(Boolean);
+    const loaded=states.filter(status=>status==='loaded').length;
+    const missing=states.includes('missing'),error=states.includes('error');
+    const message=isPreview?'Disponível somente no aplicativo Windows.':error?'A Rotom falhou ao carregar em pelo menos uma conta.':missing?'Rotom não instalada na pasta local desta versão do IdleBoard.':loaded?`Rotom carregada em ${loaded} ${loaded===1?'conta':'contas'}.`:states.includes('idle')?'Rotom em espera. Use o botão Sniper no painel da conta desejada.':'Abra uma conta para usar a Rotom.';
+    $('#rotom-load-status').textContent=message;
   }
   function renderPerformanceSettings() {
     const connected=state.openIds.map(id=>runtime(id)).filter(r=>r.status==='ready'&&r.stats?.loggedIn&&['game_visible','fainted'].includes(r.stats.status));
@@ -392,7 +399,7 @@
       setHTML($('.panel-heading',node),`${restoreToolbar}${exitFocus}<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(title)}"><span class="panel-ordinal" aria-hidden="true">${ordinal}</span><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(identity.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${identity.connection.kind==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
       const zoom=Math.round((p.zoom||layoutZoom(id))*100),resetZoom=Math.round(layoutZoom(id)*100), economy=r.stats?.economy ?? null;
       const tool=(name,title,i)=>`<button class="game-tool" data-action="game-tool" data-tool="${name}" data-id="${esc(id)}" title="${title}" aria-label="${title}">${icon(i)}<span class="tool-label">${title}</span></button>`;
-      setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar ${resetZoom}% neste modo" aria-label="Zoom ${zoom}%. Restaurar ${resetZoom}% para ${esc(p.name)}">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel em Total, com zoom de 100%" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
+      setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool sniper-tool" data-action="rotom-open" data-id="${esc(id)}" title="Abrir Sniper de ${esc(p.name)}" aria-label="Abrir Sniper de ${esc(p.name)}">${icon('search')}<span class="tool-label">Sniper</span></button><button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar ${resetZoom}% neste modo" aria-label="Zoom ${zoom}%. Restaurar ${resetZoom}% para ${esc(p.name)}">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel em Total, com zoom de 100%" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
       const placeholder = isPreview ? `${icon('game')}<strong>O seu jogo entra aqui.</strong><p>Este é um perfil da prévia. No aplicativo Windows, o PokeIdle abre diretamente nesta área.</p><span class="direct-url">pokeidle.io/app</span>` : r.status==='error' ? `${icon('info')}<strong>Não foi possível abrir o jogo.</strong><p>${esc(r.errorMessage||'Verifique a sua conexão e recarregue o painel.')}</p>` : `<span class="spinner"></span><strong>Abrindo o PokeIdle…</strong><p>Conexão direta com o jogo, usando a sessão deste perfil.</p>`;
       const slot=$('.game-slot',node);
       setHTML(slot,`<div class="game-placeholder">${placeholder}</div>`);
@@ -632,6 +639,7 @@
       case 'profiles-open':await openDialog('profiles-dialog');break;
       case 'help-open':await openDialog('help-dialog');break;
       case 'farm-open':if(id)farmProfileId=id;await openDialog('farm-dialog');break;
+      case 'rotom-open':if(id)await call('rotom:open',{id});break;
       case 'dialog-close':closeDialog(button.closest('dialog'));break;
       case 'keep-awake':await call('settings:update',{keepAwake:!state.keepAwake});break;
       case 'economy-all':{

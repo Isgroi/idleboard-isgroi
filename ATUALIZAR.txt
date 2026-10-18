@@ -1,4 +1,4 @@
-ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.9
+ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.1.0
 
 1. Feche o IdleBoard Isgroi.
 2. Extraia o ZIP completo para uma pasta sua. Não execute o programa dentro do ZIP.
@@ -12,5 +12,11 @@ A extensão /hunt for PokeIdle é opcional e não está incluída neste pacote.
 O aplicativo e o jogo funcionam sem ela. Para instalar sua própria cópia local,
 consulte codigo-fonte\README.md, na seção "Extensão /hunt". Não publique a
 extensão nem seu arquivo .crx com o código do IdleBoard.
+
+A Rotom Sniper 1.5.0 também é opcional e fica fora deste pacote. A cópia
+local deve estar em %APPDATA%\IdleBoard Isgroi\extensions\rotom.
+No botão Sniper, ela é carregada apenas na conta selecionada. Na primeira
+abertura, o jogo dessa conta recarrega e o auto-snipe começa pausado.
+Confira regras e valores antes de ativar qualquer compra automática.
 
 O modo DEV usa uma pasta de dados separada do aplicativo estável.

@@ -1,6 +1,6 @@
 {
   "name": "idleboard-isgroi",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "private": true,
   "description": "Código-fonte do painel local para PokeIdle.io",
   "scripts": {
@@ -9,9 +9,11 @@
     "dev": "set IDLEBOARD_MODE=development&& set IDLEBOARD_DEV_BACKGROUND_THROTTLING=1&& electron app",
     "dev:baseline": "set IDLEBOARD_MODE=development&& set IDLEBOARD_DEV_BACKGROUND_THROTTLING=0&& electron app",
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check app/main.cjs && node --check app/preload.cjs && node --check app/game-preload.cjs && node --check app/performance-mode.cjs && node --check app/ui/app.js && node --check app/ui/preview.js && node --check scripts/build.cjs && node --check scripts/release.cjs",
-    "build": "npm run check && node scripts/build.cjs",
-    "release": "npm test && npm run build && node scripts/release.cjs"
+    "check": "node scripts/check.cjs",
+    "build": "node scripts/check.cjs && node scripts/build.cjs",
+    "release": "node --test tests/*.test.cjs && node scripts/check.cjs && node scripts/build.cjs && node scripts/release.cjs"
   },
-  "devDependencies": { "electron": "44.9.0" }
+  "devDependencies": {
+    "electron": "44.9.0"
+  }
 }
