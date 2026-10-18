@@ -39,6 +39,7 @@
     sort:'<path d="M8 4v16m-3-3 3 3 3-3m5-13v16m-3-13 3-3 3 3"/>',
     calculator:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h1m6 0h1m-8 4h1m6 0h1m-8 4h1m6 0h1"/>',
     'chevron-down':'<path d="m6 9 6 6 6-6"/>',
+    'chevron-up':'<path d="m6 15 6-6 6 6"/>',
     bag:'<path d="M5 7h14l2 14H3L5 7ZM8 8V6a4 4 0 0 1 8 0v2"/>',
     team:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3M16 5a3 3 0 0 1 0 6m2 3a4 4 0 0 1 3 4v2"/>',
     exit:'<path d="M9 4H4v16h5m4-12 4 4-4 4m-5-4h13"/>',
@@ -54,7 +55,7 @@
     {value:'#b7e793',name:'Verde'}, {value:'#91d9ec',name:'Azul'}, {value:'#ccb0f2',name:'Violeta'},
     {value:'#f0bc8a',name:'Laranja'}, {value:'#eea4be',name:'Rosa'}, {value:'#e4d58e',name:'Amarelo'}
   ];
-  const defaults = { version:'1.0.0', profiles:[], openIds:[], focusedId:null, layout:'grid', theme:'forest', keepAwake:false, sidebarCollapsed:false, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.1', profiles:[], openIds:[], focusedId:null, layout:'grid', theme:'forest', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -141,6 +142,11 @@
     render();
   }
   function render() {
+    const toolbar=$('#global-toolbar'),focusedBefore=document.activeElement;
+    const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.classList.contains('panel-toolbar-restore'));
+    const hideToolbar=Boolean(state.toolbarHidden)&&visibleOpenIds().length>0;
+    toolbar.hidden=hideToolbar;
+    $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
     document.documentElement.dataset.theme = ['forest','ocean','violet'].includes(state.theme) ? state.theme : 'forest';
     $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
     $('#preview-banner').hidden = !isPreview;
@@ -152,10 +158,11 @@
     $('#sidebar-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis' : 'Adicionar perfil';
     $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
     $('#farm-active-dot').hidden = !Object.values(state.runtime).some(r=>r.farm?.running);
-    $('#about-version').textContent = isPreview ? 'Prévia da interface' : `Versão ${state.version || '1.0.0'}`;
+    $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.1' : `Versão ${state.version || '1.0.1'}`;
     $$('[data-action="layout"]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout)));
     $$('[data-action="theme"]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeValue===state.theme)));
     $('#keep-awake-toggle').setAttribute('aria-checked',String(Boolean(state.keepAwake)));
+    renderHuntSettings();
     renderProfiles();
     renderPanels();
     if ($('#farm-dialog').open) renderFarm();
@@ -163,8 +170,45 @@
     if ($('#stones-dialog')?.open) renderStones();
     hydrateIcons();
     colors();
+    if(preserveToolbarFocus&&(!focusedBefore.isConnected||focusedBefore.closest('[hidden]'))){
+      const currentFocus=document.activeElement;
+      if(currentFocus===focusedBefore||currentFocus===document.body||currentFocus===document.documentElement){
+        const target=hideToolbar?$('.panel-toolbar-restore'):$('#toolbar-toggle');
+        target?.focus({preventScroll:true});
+      }
+    }
     scheduleBounds();
   }
+  function renderHuntSettings() {
+    const enabled=state.huntEnabled!==false,startup=state.system?.huntEnabledAtStartup;
+    $('#hunt-enabled').checked=enabled;
+    $('#hunt-restart').hidden=typeof startup!=='boolean'||enabled===startup;
+    const entries=Object.entries(state.runtime).filter(([,r])=>r.hunt);
+    const errors=entries.filter(([,r])=>r.hunt.status==='error');
+    const loaded=entries.filter(([,r])=>r.hunt.status==='loaded').length;
+    const loading=entries.filter(([,r])=>r.hunt.status==='loading').length;
+    const disabled=entries.filter(([,r])=>r.hunt.status==='disabled').length;
+    let message;
+    if(isPreview)message='A prévia não carrega a extensão. Disponível no aplicativo Windows.';
+    else if(errors.length){
+      const names=errors.map(([id])=>profile(id)?.name||'uma conta').join(', ');
+      message=`Falha ao carregar a extensão em: ${names}.${loaded?` Carregada em ${loaded} ${loaded===1?'conta':'contas'}.`:''}`;
+    }else if(loaded)message=`Extensão carregada em ${loaded} ${loaded===1?'conta':'contas'}.${loading?` Carregando em ${loading} ${loading===1?'conta':'contas'}…`:''}`;
+    else if(loading)message=`Carregando a extensão em ${loading} ${loading===1?'conta':'contas'}…`;
+    else if(startup===false)message='Extensão desativada nesta execução.';
+    else if(disabled)message='A extensão está desativada nas contas abertas.';
+    else if(startup===true&&!state.openIds.length)message='Ativada nesta execução. Abra uma conta para carregar a extensão.';
+    else message='Aguardando o estado de carregamento da extensão.';
+    $('#hunt-load-status').classList.toggle('warning',!isPreview&&errors.length>0);
+    setHTML($('#hunt-load-status'),`${icon(!isPreview&&errors.length?'info':loading&&!isPreview?'clock':'info')}<span>${esc(message)}</span>`);
+  }
+  $('#hunt-enabled').addEventListener('change',async event=>{
+    const input=event.currentTarget,wanted=input.checked;
+    input.disabled=true;
+    await call('settings:update',{huntEnabled:wanted});
+    input.disabled=false;
+    renderHuntSettings();
+  });
   function renderProfiles() {
     const html = state.profiles.length ? state.profiles.map(p=>{
       const open = state.openIds.includes(p.id), r = runtime(p.id), status = isPreview && open ? 'Prévia do painel' : !open ? 'Fechado' : r.status==='error' ? 'Falha na conexão' : r.status==='loading' ? 'Carregando…' : r.stats?.loggedIn ? 'Em jogo' : 'Aguardando login';
@@ -207,7 +251,8 @@
       node.classList.toggle('is-focused',state.focusedId===id);
       node.setAttribute('aria-label',`Painel ${p.name}`);
       const status=isPreview?'Prévia da interface':r.status==='error'?'Falha na conexão':r.status==='loading'?'Carregando…':r.stats?.loggedIn?`${label(r.stats.nick,p.name)}${r.stats.trainerLevel!=null?` · Nível ${numeric(r.stats.trainerLevel)}`:''}`:'Aguardando login';
-      setHTML($('.panel-heading',node),`<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(r.notice||`Selecionar ${p.name}`)}"><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(p.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${r.status==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
+      const restoreToolbar=state.toolbarHidden&&index===0?`<button class="icon-button panel-toolbar-restore" data-action="toolbar-toggle" title="Mostrar barra superior (Ctrl+Shift+B)" aria-label="Mostrar barra superior (Ctrl+Shift+B)" aria-controls="global-toolbar" aria-expanded="false">${icon('chevron-down')}</button>`:'';
+      setHTML($('.panel-heading',node),`${restoreToolbar}<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(r.notice||`Selecionar ${p.name}`)}"><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(p.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${r.status==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
       const zoom=Math.round((p.zoom||.6)*100), economy=r.stats?.economy ?? null;
       const tool=(name,title,i)=>`<button class="game-tool" data-action="game-tool" data-tool="${name}" data-id="${esc(id)}" title="${title}" aria-label="${title}">${icon(i)}<span class="tool-label">${title}</span></button>`;
       setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar 60%">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
@@ -446,6 +491,7 @@
       case 'layout':await call('layout:set',{layout:button.dataset.layout});break;
       case 'open-all':for(const item of state.profiles)if(!state.openIds.includes(item.id))await call('panel:open',{id:item.id});closeDialog();break;
       case 'fullscreen':await call('window:fullscreen');break;
+      case 'toolbar-toggle':await call('toolbar:toggle');break;
       case 'sidebar-toggle':await call('settings:update',{sidebarCollapsed:!state.sidebarCollapsed});break;
       case 'settings-open':await openDialog('settings-dialog');break;
       case 'profiles-open':await openDialog('profiles-dialog');break;
@@ -473,6 +519,9 @@
   });
   document.addEventListener('keydown',async event=>{
     if(event.key==='F11'){event.preventDefault();await call('window:fullscreen');return;}
+    if(isPreview&&event.ctrlKey&&event.shiftKey&&!event.altKey&&!event.metaKey&&event.key.toLowerCase()==='b'){
+      event.preventDefault();if(!event.repeat)await call('toolbar:toggle');return;
+    }
     if(activeDialog?.open)return;
     if((event.ctrlKey||event.metaKey)&&!event.altKey&&/^[1-4]$/.test(event.key)){
       event.preventDefault();const id=state.openIds[Number(event.key)-1];if(id)await call('panel:focus',{id});

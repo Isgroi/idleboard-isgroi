@@ -19,6 +19,13 @@ test('restauração limita quatro perfis, elimina duplicatas e entradas inválid
   assert.equal(state.openIds.length, 4);
   assert.equal(state.focusedId, profiles[0].id);
   assert.equal(state.theme, 'forest');
+  assert.equal(state.toolbarHidden, false);
+  assert.equal(state.huntEnabled, true);
+  const updated = m.restoreState({ ...state, toolbarHidden: true, huntEnabled: false });
+  assert.equal(updated.toolbarHidden, true);
+  assert.equal(updated.huntEnabled, false);
+  assert.deepEqual(updated.profiles, state.profiles);
+  assert.deepEqual(updated.openIds, state.openIds);
   assert.ok(state.profiles.every(p => p.zoom >= 0.35 && p.zoom <= 1.5));
 });
 
@@ -50,9 +57,13 @@ test('exportação exclui perfis, sessões e qualquer credencial mesmo se existi
   const s=m.initialState();
   s.profiles=[{id:randomUUID(),name:'Private',token:'secret',password:'secret'}];
   s.token='secret';
+  s.toolbarHidden=true;
+  s.huntEnabled=false;
   const out=m.exportPreferences(s);
   assert.equal(JSON.stringify(out).includes('secret'),false);
   assert.equal(Object.hasOwn(out,'profiles'),false);
+  assert.equal(out.settings.toolbarHidden,true);
+  assert.equal(out.settings.huntEnabled,false);
   assert.deepEqual(Object.keys(out).sort(),['app','exportedAt','schemaVersion','settings','trials']);
 });
 
@@ -60,10 +71,12 @@ test('importação não cria ou altera sessões e recalcula taxas dos dados brut
   const s=m.initialState();
   s.profiles=[{id:randomUUID(),name:'Minha conta'}];
   const id=s.profiles[0].id;
-  m.importPreferences(s,{app:'IdleBoard Isgroi',schemaVersion:1,profiles:[{id:'malicious'}],settings:{theme:'violet',keepAwake:true},trials:[{id:randomUUID(),profileName:'Medição',elapsedMs:120000,trainerXp:500,pokemonXp:1000,pokemonXpPerHour:9999999,goldDelta:-50}]});
+  m.importPreferences(s,{app:'IdleBoard Isgroi',schemaVersion:1,profiles:[{id:'malicious'}],settings:{theme:'violet',keepAwake:true,toolbarHidden:true,huntEnabled:false},trials:[{id:randomUUID(),profileName:'Medição',elapsedMs:120000,trainerXp:500,pokemonXp:1000,pokemonXpPerHour:9999999,goldDelta:-50}]});
   assert.equal(s.profiles[0].id,id);
   assert.equal(s.theme,'violet');
   assert.equal(s.keepAwake,false);
+  assert.equal(s.toolbarHidden,true);
+  assert.equal(s.huntEnabled,false);
   assert.equal(s.trials[0].pokemonXpPerHour,30000);
   assert.equal(s.trials[0].goldDelta,-50);
   assert.throws(()=>m.importPreferences(s,{app:'Other',schemaVersion:1}));

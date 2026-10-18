@@ -24,7 +24,7 @@ function partitionFor(id) {
 }
 
 function initialState() {
-  return { schemaVersion: 1, profiles: [], openIds: [], focusedId: null, layout: 'grid', theme: 'forest', keepAwake: false, sidebarCollapsed: false, trials: [] };
+  return { schemaVersion: 1, profiles: [], openIds: [], focusedId: null, layout: 'grid', theme: 'forest', keepAwake: false, sidebarCollapsed: false, toolbarHidden: false, huntEnabled: true, trials: [] };
 }
 
 function cleanTrial(raw) {
@@ -63,6 +63,8 @@ function restoreState(raw) {
   if (LAYOUTS.includes(raw.layout)) s.layout = raw.layout;
   s.keepAwake = raw.keepAwake === true;
   s.sidebarCollapsed = raw.sidebarCollapsed === true;
+  s.toolbarHidden = raw.toolbarHidden === true;
+  s.huntEnabled = raw.huntEnabled !== false;
   s.trials = (Array.isArray(raw.trials) ? raw.trials : []).slice(0, 200).map(cleanTrial).filter(Boolean);
   return s;
 }
@@ -149,7 +151,7 @@ function sanitizeLives(raw, profileId, now = Date.now()) {
 }
 
 function exportPreferences(state) {
-  return { app: 'IdleBoard Isgroi', schemaVersion: 1, exportedAt: new Date().toISOString(), settings: { theme: state.theme, layout: state.layout, sidebarCollapsed: state.sidebarCollapsed }, trials: state.trials.map(cleanTrial).filter(Boolean) };
+  return { app: 'IdleBoard Isgroi', schemaVersion: 1, exportedAt: new Date().toISOString(), settings: { theme: state.theme, layout: state.layout, sidebarCollapsed: state.sidebarCollapsed, toolbarHidden: state.toolbarHidden === true, huntEnabled: state.huntEnabled !== false }, trials: state.trials.map(cleanTrial).filter(Boolean) };
 }
 
 function importPreferences(state, raw) {
@@ -158,6 +160,8 @@ function importPreferences(state, raw) {
   if (THEMES.includes(p.theme)) state.theme = p.theme;
   if (LAYOUTS.includes(p.layout)) state.layout = p.layout;
   if (typeof p.sidebarCollapsed === 'boolean') state.sidebarCollapsed = p.sidebarCollapsed;
+  if (typeof p.toolbarHidden === 'boolean') state.toolbarHidden = p.toolbarHidden;
+  if (typeof p.huntEnabled === 'boolean') state.huntEnabled = p.huntEnabled;
   const trials = (Array.isArray(raw.trials) ? raw.trials : []).slice(0, 200).map(cleanTrial).filter(Boolean);
   const byId = new Map(state.trials.map(t => [t.id, t]));
   for (const trial of trials) if (!byId.has(trial.id)) byId.set(trial.id, trial);

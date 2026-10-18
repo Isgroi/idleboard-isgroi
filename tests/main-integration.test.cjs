@@ -20,12 +20,15 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
   class Contents extends EventEmitter {
     constructor(session) { super(); this.session = session; this.mainFrame = { url: '' }; this.sent = []; this.destroyed = false; }
     loadURL(url) {
+      if (url.startsWith('https://pokeidle.io/')) assert.equal(this.session.extensionSettled, true, 'game navigation waits for extension registration');
+      this.loads = (this.loads || 0) + 1;
       this.mainFrame.url = url;
       this.emit('did-start-navigation', {}, url, false, true);
       queueMicrotask(() => { this.emit('did-finish-load'); if (win?.webContents === this) win.emit('ready-to-show'); });
       return Promise.resolve();
     }
     isDestroyed() { return this.destroyed; }
+    getURL() { return this.mainFrame.url; }
     setWindowOpenHandler(fn) { this.openHandler = fn; }
     setAudioMuted(value) { this.muted = value; }
     setZoomFactor(value) { this.zoom = value; }
@@ -40,6 +43,22 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     value.setPermissionCheckHandler = fn => { value.checkPermission = fn; };
     value.clearStorageData = async () => { value.cleared = true; };
     value.clearCache = async () => {};
+    value.extensionLoadCalls = 0;
+    value.extensions = {
+      loadExtension(directory, options) {
+        value.extensionLoadCalls++;
+        assert.equal(directory, path.join(appRoot, 'extensions', 'hunt'));
+        assert.deepEqual(options, { allowFileAccess: false });
+        return new Promise((resolve, reject) => {
+          value.finishExtension = success => {
+            value.extensionSettled = true;
+            if (success) resolve({ id: 'fixture-hunt', version: '1.0.3' });
+            else reject(new Error('Fixture registration failure'));
+          };
+        });
+      },
+      removeExtension() {},
+    };
     return value;
   }
   class Window extends EventEmitter {
@@ -64,7 +83,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     setBackgroundColor() {} setBorderRadius() {}
   }
   const app = new EventEmitter();
-  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.0', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
+  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.1', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
   const ipcMain = new EventEmitter();
   ipcMain.handle = (channel, callback) => handlers.set(channel, callback);
   const electron = {
@@ -93,10 +112,40 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     assert.equal((await action('profile:add', { name: 'Quinta' })).ok, false);
     assert(createdViews.every(v => v.options.webPreferences.sandbox && v.options.webPreferences.contextIsolation && !v.options.webPreferences.nodeIntegration));
     assert.equal(new Set(createdViews.map(v => v.webContents.session)).size, 4);
+    assert(createdViews.every(v => !v.webContents.mainFrame.url));
+    assert.equal(current().huntEnabled, true);
+    assert.equal(current().system.huntEnabledAtStartup, true);
+    assert.equal(win.webContents.session.extensionLoadCalls, 0);
+    for (const ses of sessions.values()) {
+      assert.equal(ses.extensionLoadCalls, 1);
+      ses.finishExtension(true);
+    }
+    await new Promise(setImmediate);
+    assert(createdViews.every(v => v.webContents.mainFrame.url === 'https://pokeidle.io/app'));
+    assert(Object.values(current().runtime).every(r => r.hunt.status === 'loaded'));
     const [first, second] = current().openIds;
     const bounds = Object.fromEntries(current().openIds.map((id, i) => [id, { x: i % 2 * 640, y: Math.floor(i / 2) * 400 + 40, width: 630, height: 350 }]));
     ipcMain.emit('board:bounds', ui(), bounds);
     assert(createdViews.every(v => v.visible));
+    const profilesBeforeToggle = JSON.stringify(current().profiles);
+    const nativeContentsBeforeToggle = createdViews.map(v => v.webContents);
+    await action('toolbar:toggle');
+    assert.equal(current().toolbarHidden, true);
+    let prevented = false;
+    createdViews[0].webContents.emit('before-input-event', { preventDefault() { prevented = true; } }, { type: 'keyDown', key: 'B', control: true, shift: true });
+    assert.equal(prevented, true);
+    assert.equal(current().toolbarHidden, false);
+    createdViews[0].webContents.emit('before-input-event', { preventDefault() {} }, { type: 'keyDown', key: 'B', control: true, shift: true, isAutoRepeat: true });
+    assert.equal(current().toolbarHidden, false);
+    assert.equal(JSON.stringify(current().profiles), profilesBeforeToggle);
+    assert.deepEqual(createdViews.map(v => v.webContents), nativeContentsBeforeToggle);
+    assert.equal(sessions.size, 4);
+    assert(createdViews.every(v => !v.webContents.isDestroyed()));
+    const loadsBeforeSettings = createdViews.map(v => v.webContents.loads);
+    await action('settings:update', { huntEnabled: false });
+    assert.equal(current().huntEnabled, false);
+    assert.equal(current().system.huntEnabledAtStartup, true);
+    assert.deepEqual(createdViews.map(v => v.webContents.loads), loadsBeforeSettings);
     await handlers.get('board:overlay')(ui(), true);
     assert(createdViews.every(v => !v.visible));
     await handlers.get('board:overlay')(ui(), false);
@@ -127,6 +176,25 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await action('profile:delete', { id: first });
     assert.equal([...sessions.values()].filter(s => s.cleared).length, 1);
     assert.equal(current().profiles.length, 3);
+    // Closing and reopening a panel while registration is pending must never
+    // navigate the destroyed view or register twice in the same partition.
+    await action('profile:add', { name: 'Pending fixture' });
+    const pendingId = current().focusedId;
+    const cancelled = createdViews.at(-1);
+    const pendingSession = cancelled.webContents.session;
+    await action('panel:close', { id: pendingId });
+    await action('panel:open', { id: pendingId });
+    const reopened = createdViews.at(-1);
+    assert.notEqual(cancelled, reopened);
+    assert.equal(reopened.webContents.session, pendingSession);
+    assert.equal(pendingSession.extensionLoadCalls, 1);
+    pendingSession.finishExtension(false);
+    await new Promise(setImmediate);
+    assert.equal(cancelled.webContents.mainFrame.url, '');
+    assert.equal(reopened.webContents.mainFrame.url, 'https://pokeidle.io/app');
+    assert.equal(current().runtime[pendingId].hunt.status, 'error');
+    assert.equal(current().runtime[pendingId].status, 'ready');
+    assert(current().runtime[pendingId].hunt.error);
   } finally {
     fs.rmSync(dataFolder, { recursive: true, force: true });
   }

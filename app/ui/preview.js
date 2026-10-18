@@ -4,17 +4,20 @@
 if (!window.idleBoard) {
   (() => {
     const STORAGE_KEY='idleboard-isgroi-interface-preview-v1';
-    const initial={version:'1.0.0',profiles:[],openIds:[],focusedId:null,layout:'grid',theme:'forest',keepAwake:false,sidebarCollapsed:false,runtime:{},trials:[],system:{platform:'preview',electron:null}};
+    const initial={version:'1.0.1',profiles:[],openIds:[],focusedId:null,layout:'grid',theme:'forest',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
     let state={...initial};
     const listeners=new Set();
     try {
       const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
       if(saved&&Array.isArray(saved.profiles))state={...initial,...saved,profiles:saved.profiles.slice(0,4),runtime:{},trials:[]};
     } catch { /* A private browser or malformed saved preview should still open. */ }
+    state.version=initial.version;
+    state.huntEnabled=state.huntEnabled!==false;
+    state.system={...initial.system,huntEnabledAtStartup:state.huntEnabled};
     function normalize(){
       state.openIds=state.openIds.filter(id=>state.profiles.some(p=>p.id===id));
       if(!state.openIds.includes(state.focusedId))state.focusedId=state.openIds[0]||null;
-      state.runtime=Object.fromEntries(state.openIds.map(id=>[id,{status:'ready',errorMessage:null,stats:null,farm:null}]));
+      state.runtime=Object.fromEntries(state.openIds.map(id=>[id,{status:'ready',errorMessage:null,stats:null,farm:null,hunt:{status:'disabled',version:'1.0.3'}}]));
     }
     function snapshot(){return JSON.parse(JSON.stringify(state));}
     function publish(){
@@ -51,9 +54,11 @@ if (!window.idleBoard) {
           case 'panel:zoom':if(p)p.zoom=Math.min(1.5,Math.max(.35,Number(payload.zoom)||.6));break;
           case 'panel:mute':if(p)p.muted=Boolean(payload.muted);break;
           case 'layout:set':if(['grid','focus','single'].includes(payload.layout))state.layout=payload.layout;break;
+          case 'toolbar:toggle':state.toolbarHidden=!state.toolbarHidden;break;
           case 'settings:update':
             if(['forest','ocean','violet'].includes(payload.theme))state.theme=payload.theme;
             if(typeof payload.sidebarCollapsed==='boolean')state.sidebarCollapsed=payload.sidebarCollapsed;
+            if(typeof payload.huntEnabled==='boolean')state.huntEnabled=payload.huntEnabled;
             if(typeof payload.keepAwake==='boolean')return{ok:false,error:'Manter o computador ativo funciona no aplicativo Windows.'};
             break;
           case 'panel:reload':case 'panel:home':return{ok:true,message:'No aplicativo Windows, este botão recarrega a sessão real do PokeIdle.'};

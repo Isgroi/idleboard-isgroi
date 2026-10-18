@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.0
+IDLEBOARD ISGROI — 1.0.1
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR
@@ -14,12 +14,46 @@ para acessar o próprio jogo. O código do painel funciona no seu computador.
 
 BARRA COMPACTA
 
+Recolher barra: a seta para cima no canto direito esconde toda a barra superior.
+Os quatro jogos passam a aproveitar esse espaço. Para mostrar a barra novamente,
+clique na seta para baixo na barra do primeiro quadrante ou pressione Ctrl+Shift+B.
+A preferência fica salva ao fechar. Sem painéis abertos, a barra sempre aparece.
+F11 entra/sai da tela cheia e esconde a moldura do Windows. Use junto com a barra
+recolhida para aproveitar mais espaço, sem fechar ou recarregar as contas.
+
 Grade / Foco / Um por vez: muda a disposição. Os painéis abertos continuam funcionando.
 Lives: escolha uma conta conectada, carregue os canais e abra a live no navegador padrão.
 Pedras: escolha a conta e consulte preços diretamente na interface do Mercado do jogo.
 Contas: criar, renomear, abrir, fechar e remover os perfis locais.
 Meu farm: medir o XP observado e comparar testes de hunts.
-Configurações: temas, manter PC ativo e exportar/importar preferências e medições.
+Configurações: Hunt, temas, manter PC ativo e exportar/importar preferências e medições.
+
+/HUNT FOR POKEIDLE
+
+A extensão /hunt for PokeIdle, de Liang, está incluída na versão 1.0.3 com uma
+correção pequena de interface. Não é necessário instalar a extensão no Chrome
+para usá-la neste aplicativo. Ela começa ativada nos perfis do IdleBoard.
+
+Entre no jogo e selecione seu Pokémon. O botão /hunt aparece dentro da página,
+junto ao card do Pokémon ativo. Ele abre a comparação de hunts e estimativas de
+XP/h, ouro/h, abates e risco. Essas estimativas são diferentes das taxas OBSERVADAS
+na ferramenta Meu farm do painel; podem variar conforme o estado e as regras do jogo.
+
+Cada perfil carrega sua própria instância da Hunt. Suas preferências e calibrações
+ficam nos dados locais daquela conta, sem juntar as quatro sessões.
+Em Configurações, você pode ativar/desativar a Hunt. Feche e reabra o aplicativo
+para aplicar a mudança; alternar essa opção não recarrega as contas em andamento.
+O estado "Carregada" confirma o carregamento do pacote, não a precisão das estimativas.
+Se o carregamento da extensão falhar, o jogo continua disponível e Configurações
+mostra o aviso. Reabra o aplicativo para tentar carregar a extensão novamente.
+
+Esta cópia não é atualizada automaticamente. Uma mudança no jogo ou na extensão
+pode exigir uma nova atualização do painel. O pacote original foi preservado em
+resources\app\extensions\hunt-original-1.0.3.crx para conferência de origem.
+O arquivo HUNT-NOTICE.txt, na mesma pasta, explica autoria, origem e adaptação.
+
+A correção remove somente uma informação de rodapé ausente que causava erro com
+TM AoE na Hunt 1.0.3. O motor, as fórmulas e os resultados não foram modificados.
 
 EM CADA QUADRANTE
 
@@ -33,7 +67,8 @@ Ampliar: coloca a conta em destaque individual; use Grade para voltar às quatro
 Recarregar: recarrega aquela conta.
 Sair: fecha esse painel e encerra sua conexão. O login local pode ser reutilizado ao abrir.
 
-Atalhos: F11 alterna tela cheia. Ctrl+1, Ctrl+2, Ctrl+3 e Ctrl+4 selecionam painéis abertos.
+Atalhos: F11 alterna tela cheia. Ctrl+Shift+B mostra/esconde a barra superior.
+Ctrl+1, Ctrl+2, Ctrl+3 e Ctrl+4 selecionam painéis abertos.
 
 PEDRAS ABAIXO DO MERCADO
 
@@ -76,7 +111,13 @@ DADOS E LOGIN
 Não existe conta do IdleBoard Isgroi, mensalidade, backend do painel ou telemetria própria.
 Você digita as credenciais somente no formulário oficial do jogo/provedor que escolher.
 Cada perfil usa uma sessão Chromium separada. Cookies e dados do jogo ficam no perfil
-local do Windows; o painel não lê senhas, tokens, cookies ou storage do jogo.
+local do Windows e são reutilizados ao reabrir, enquanto o jogo aceitar a sessão.
+Os controles próprios do painel não coletam senhas nem exportam tokens ou cookies.
+A Hunt é código de terceiro: lê o estado recebido pelo jogo e guarda suas próprias
+preferências e calibrações localmente. A revisão do pacote 1.0.3 não encontrou envio
+de dados a servidores do autor nem leitura explícita de senhas, cookies ou tokens.
+Ela carrega módulos oficiais do jogo pela internet; a revisão não garante risco zero
+nem cobre futuras mudanças nesses módulos.
 PokeIdle, seus provedores de login e as lives recebem os acessos normais aos seus sites.
 
 Pasta padrão dos dados: %APPDATA%\IdleBoard Isgroi
@@ -101,6 +142,10 @@ SE ALGO NÃO ABRIR
 • Atalho Itens/Vendas/Time/Eco indisponível: entre na conta e espere a interface carregar.
 • Mercado sem preço/referência: atualize a leitura; valores ausentes não viram zero.
 • O jogo mudou a interface: os atalhos e leitores podem precisar de atualização.
+• Hunt ausente: entre no jogo, selecione um Pokémon e confira Configurações > Hunt.
+  Após mudar a opção, feche e reabra o aplicativo. Na tela de login, não há botão /hunt.
+• Hunt com erro de cálculo: os módulos ou dados do jogo podem ter mudado. A opção
+  em Configurações permite desligar a extensão e aplicar ao reabrir o aplicativo.
 • Login Google/Discord depende da compatibilidade do provedor com o navegador embutido.
   Esses logins não foram autenticados durante a construção do aplicativo.
 
@@ -108,8 +153,11 @@ VERIFICAÇÃO DESTA ENTREGA
 
 Código e regras de leitura foram conferidos contra o cliente público v1.305.9 do jogo.
 Foram executados testes automatizados locais de parsers, medições, controles e isolamento.
+Para Hunt, foram verificados a ordem de carregamento por sessão com objetos nativos
+simulados, o hook com mensagens sintéticas e a interface com/sem TM AoE em DOM simulado.
 Nenhuma conta real foi usada no desenvolvimento. O executável Windows não foi executado
-neste ambiente Linux. A confirmação de login e das leituras na sua conta ocorre no seu PC.
+neste ambiente Linux. O carregamento nativo da extensão e seus cálculos com sua conta
+conectada ainda precisam ser confirmados no seu PC.
 
 O pacote usa Electron 44.9.0 obtido da distribuição oficial e conferido por SHA-256.
 Não possui atualizador automático. Uma atualização do painel/runtime exige um novo pacote.
@@ -123,6 +171,7 @@ Cliente público consultado: https://pokeidle.io/app.js?v=1.305.9
 Regras do jogo: https://pokeidle.io/terms
 Inspiração de organização: https://teddera.com.br/idleboard/ e prints enviados pelo usuário.
 Electron: https://www.electronjs.org/docs/latest/tutorial/security
+Extensão Hunt: https://chromewebstore.google.com/detail/hunt-for-pokeidle/mhnplloljgchpfpcpbhmcokmnefodjnh
 
 Projeto independente. Não possui vínculo com o IdleBoard de terceiros, PokeIdle ou
 os titulares de Pokémon. Nenhum código do aplicativo concorrente foi usado.

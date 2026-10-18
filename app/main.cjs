@@ -6,6 +6,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const model = require('./model.cjs');
 const { createFarmTracker } = require('./farm-metrics.cjs');
+const { HUNT_VERSION, createHuntLoader } = require('./hunt-extension.cjs');
 
 app.setName('IdleBoard Isgroi');
 app.setAppUserModelId('br.isgroi.idleboard');
@@ -16,6 +17,7 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
 const views = new Map();
 const runtime = Object.create(null);
 const farms = new Map();
+const navigationRequests = new WeakMap();
 const toolsState = { market: null, lives: null };
 let window = null;
 let configPath;
@@ -25,6 +27,7 @@ let lastBounds = {};
 let blocker = null;
 let saveTimer = null;
 let quitting = false;
+let huntLoader;
 
 function persist() {
   if (!configPath) return;
@@ -44,7 +47,7 @@ function notifyStorageFailure() {
 }
 
 function publicState() {
-  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron } };
+  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron, huntEnabledAtStartup: huntLoader?.enabled ?? state.huntEnabled } };
 }
 
 function emit() {
@@ -168,6 +171,15 @@ function applyBounds() {
 function handleKeys(contents) {
   contents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
+    if ((input.control || input.meta) && input.shift && !input.alt && String(input.key).toLowerCase() === 'b') {
+      event.preventDefault();
+      if (!input.isAutoRepeat) {
+        state.toolbarHidden = !state.toolbarHidden;
+        scheduleSave();
+        emit();
+      }
+      return;
+    }
     if (input.key === 'F11') {
       event.preventDefault();
       window.setFullScreen(!window.isFullScreen());
@@ -196,6 +208,22 @@ function markBlocked(id) {
   if (r) { r.notice = 'Esse link sai do jogo. Abra-o no seu navegador habitual.'; emit(); }
 }
 
+function navigateGame(id, { reload = false } = {}) {
+  const view = getView(id);
+  const contents = view.webContents;
+  const request = (navigationRequests.get(view) || 0) + 1;
+  navigationRequests.set(view, request);
+  // Register document_start / MAIN scripts before the game creates its socket.
+  // Keep a cancelled/closed view from navigating when registration resolves.
+  return huntLoader.load(contents.session).then(result => {
+    if (views.get(id) !== view || contents.isDestroyed() || navigationRequests.get(view) !== request) return;
+    runtime[id].hunt = result;
+    emit();
+    if (reload && contents.getURL()) contents.reload();
+    else return contents.loadURL(model.GAME_URL).catch(() => {});
+  });
+}
+
 function createGameView(id) {
   if (views.has(id)) return views.get(id);
   const profile = getProfile(id);
@@ -209,7 +237,7 @@ function createGameView(id) {
     navigateOnDragDrop: false, spellcheck: false,
   } });
   views.set(id, view);
-  runtime[id] = { status: 'loading', errorMessage: null, stats: null, farm: null, notice: '' };
+  runtime[id] = { status: 'loading', errorMessage: null, stats: null, farm: null, notice: '', hunt: { status: huntLoader.enabled ? 'loading' : 'disabled', version: HUNT_VERSION } };
   view.setBackgroundColor('#111917');
   if (typeof view.setBorderRadius === 'function') view.setBorderRadius(8);
   view.setVisible(false);
@@ -263,7 +291,7 @@ function createGameView(id) {
     runtime[id].errorMessage = 'O processo do jogo foi interrompido. Clique em Recarregar para abrir novamente.';
     emit();
   });
-  contents.loadURL(model.GAME_URL).catch(() => {});
+  navigateGame(id);
   applyBounds();
   updatePowerBlocker();
   return view;
@@ -328,8 +356,8 @@ async function performAction(action, payload) {
       break;
     }
     case 'panel:close': getProfile(p.id); closePanel(p.id); break;
-    case 'panel:reload': finishFarm(p.id, 'reload'); getView(p.id).webContents.reload(); break;
-    case 'panel:home': finishFarm(p.id, 'reload'); getView(p.id).webContents.loadURL(model.GAME_URL).catch(() => {}); break;
+    case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); break;
+    case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); break;
     case 'panel:focus': getView(p.id); state.focusedId = p.id; break;
     case 'panel:zoom': {
       const profile = getProfile(p.id);
@@ -344,10 +372,16 @@ async function performAction(action, payload) {
       break;
     }
     case 'layout:set': if (!model.LAYOUTS.includes(p.layout)) throw new Error('Layout inválido.'); state.layout = p.layout; break;
+    case 'toolbar:toggle': state.toolbarHidden = !state.toolbarHidden; break;
     case 'settings:update': {
       if (p.theme !== undefined) { if (!model.THEMES.includes(p.theme)) throw new Error('Tema inválido.'); state.theme = p.theme; }
       if (typeof p.keepAwake === 'boolean') state.keepAwake = p.keepAwake;
       if (typeof p.sidebarCollapsed === 'boolean') state.sidebarCollapsed = p.sidebarCollapsed;
+      if (typeof p.toolbarHidden === 'boolean') state.toolbarHidden = p.toolbarHidden;
+      if (typeof p.huntEnabled === 'boolean') {
+        state.huntEnabled = p.huntEnabled;
+        if (state.huntEnabled !== huntLoader.enabled) message = 'Reabra o aplicativo para aplicar a mudança da Hunt nas quatro sessões.';
+      }
       updatePowerBlocker();
       break;
     }
@@ -531,6 +565,7 @@ else {
       try { fs.copyFileSync(configPath, configPath + '.recovery-' + Date.now()); } catch {}
       dialog.showErrorBox('Preferências não puderam ser lidas', 'Uma cópia do arquivo original foi preservada quando possível. O painel abrirá com preferências novas; as contas no jogo não foram alteradas.');
     }
+    huntLoader = createHuntLoader({ enabled: state.huntEnabled });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'Aplicativo', submenu: [{ role: 'quit', label: 'Sair' }] },
       { label: 'Editar', submenu: [{ role: 'undo', label: 'Desfazer' }, { role: 'redo', label: 'Refazer' }, { type: 'separator' }, { role: 'cut', label: 'Recortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Colar' }, { role: 'selectAll', label: 'Selecionar tudo' }] },

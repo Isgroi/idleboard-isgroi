@@ -1,0 +1,54 @@
+ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.1
+
+NOVIDADES
+
+Agora você pode recolher completamente a barra superior (Lives / Pedras / Contas).
+Clique na seta para cima à direita. Para restaurar, use a seta para baixo na barra
+do primeiro quadrante ou Ctrl+Shift+B. A escolha fica salva ao fechar o programa.
+Use F11 junto com a barra recolhida para esconder também a moldura do Windows.
+
+A extensão /hunt for PokeIdle 1.0.3, de Liang, está incluída e começa ativada nas
+quatro sessões. Depois de entrar no jogo, use o botão /hunt junto ao Pokémon ativo.
+Não precisa instalar no Chrome. Em Configurações você pode desligar/ligar a Hunt;
+feche e reabra o aplicativo para aplicar. Essa mudança não recarrega os jogos na hora.
+
+Foi corrigido um erro de interface da extensão ao exibir resultados com TM AoE,
+sem alterar as fórmulas do motor. Veja LEIA-ME.txt e resources\app\extensions\HUNT-NOTICE.txt.
+
+SE VOCÊ BAIXOU A ATUALIZAÇÃO PEQUENA
+
+1. Feche o IdleBoard Isgroi pelo X da janela.
+2. Extraia TODO o arquivo Atualizacao-IdleBoard-1.0.1.zip.
+3. Abra a pasta em que está o seu IdleBoard-Isgroi.exe.
+4. Copie para essa pasta TODO o conteúdo da atualização extraída, incluindo as
+   pastas resources e codigo-fonte. Confirme a substituição dos arquivos existentes.
+5. Abra novamente o MESMO IdleBoard-Isgroi.exe.
+
+A atualização pequena não contém um executável novo: ela atualiza os arquivos
+usados pelo executável da versão 1.0.0. Precisa ser copiada para a pasta existente.
+Em Configurações, a versão exibida depois da atualização deve ser 1.0.1.
+Se continuar 1.0.0, confira se resources\app foi substituída na pasta do executável
+que você está abrindo. Não crie uma pasta resources dentro de outra resources.
+
+SE VOCÊ BAIXOU O PACOTE COMPLETO
+
+Feche o programa anterior, extraia a pasta inteira do novo pacote e abra o
+IdleBoard-Isgroi.exe da pasta nova. Não execute de dentro do ZIP.
+
+SUAS CONTAS E SESSÕES
+
+Esta atualização mantém o mesmo nome de aplicativo e os mesmos identificadores
+dos perfis. Continua usando a pasta de dados do seu usuário do Windows, separada
+da pasta do executável. Não é necessário excluir ou criar os perfis novamente.
+
+Não apague a pasta de dados locais e não use Excluir perfil para atualizar.
+O PokeIdle ainda pode pedir login se a sessão tiver expirado ou sido invalidada.
+
+Os arquivos da atualização não incluem os seus cookies, tokens ou senhas.
+
+TESTES
+
+Os testes locais de integração e da interface passaram, usando sessões e dados
+simulados. Não foi possível executar o programa Windows neste ambiente nem entrar
+em uma conta real. O funcionamento da Hunt no jogo conectado precisa ser confirmado
+na sua instalação. Se houver falha na extensão, o jogo ainda pode abrir normalmente.
