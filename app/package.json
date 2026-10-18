@@ -1,0 +1,9 @@
+{
+  "name": "idleboard-isgroi",
+  "productName": "IdleBoard Isgroi",
+  "version": "1.0.0",
+  "description": "Painel local e pessoal para PokeIdle.io",
+  "main": "main.cjs",
+  "private": true,
+  "license": "MIT"
+}

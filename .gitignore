@@ -1,0 +1,49 @@
+node_modules/
+
+# Extensões de terceiros: instalação pessoal, nunca publicar ou empacotar do código-fonte
+app/extensions/
+*.crx
+
+# Pacotes gerados localmente (grandes e reproduzíveis)
+dist/*
+!dist/.gitkeep
+releases/*
+!releases/.gitkeep
+*.zip
+
+# Dados locais, sessões e credenciais do Electron/Chromium
+user-data/
+userdata/
+sessions/
+profiles/
+Cookies
+Cookies-journal
+Local Storage/
+Session Storage/
+IndexedDB/
+Network/
+Service Worker/
+WebStorage/
+preferences.json
+preferences.json.*
+
+# Segredos e arquivos da máquina
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Logs, caches e editores
+*.log
+npm-debug.log*
+.cache/
+.tmp/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*.log

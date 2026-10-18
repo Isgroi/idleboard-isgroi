@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="forest">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="color-scheme" content="dark">
+  <title>IdleBoard Isgroi</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="preview.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <header class="global-bar" aria-label="Controles gerais">
+      <div class="compact-brand"><span class="compact-brand-mark" aria-hidden="true">I</span><strong>IDLEBOARD</strong><span class="compact-brand-name">ISGROI</span></div>
+      <span class="bar-divider"></span><span class="general-label">GERAL</span>
+      <button class="bar-button" data-action="lives-open" title="Ver lives e abrir no navegador"><span data-icon="video"></span>Lives<span data-icon="arrow-up-right"></span></button>
+      <button class="bar-button" data-action="stones-open" title="Encontrar pedras abaixo da média do mercado"><span data-icon="gem"></span>Pedras</button>
+      <button class="bar-button" data-action="farm-open" title="Medições e histórico de farm"><span data-icon="chart"></span>Farm<span class="farm-active-dot" id="farm-active-dot" hidden></span></button>
+      <div class="bar-spacer"></div>
+      <div class="layout-switch" role="group" aria-label="Disposição dos painéis"><button data-action="layout" data-layout="grid" title="Grade" aria-label="Grade" aria-pressed="true"><span data-icon="grid"></span></button><button data-action="layout" data-layout="focus" title="Um painel em foco" aria-label="Foco" aria-pressed="false"><span data-icon="focus"></span></button><button data-action="layout" data-layout="single" title="Um painel por vez; os outros continuam abertos" aria-label="Um por vez" aria-pressed="false"><span data-icon="single"></span></button></div>
+      <span class="bar-divider"></span>
+      <button class="bar-button" data-action="profiles-open" title="Gerenciar contas e perfis"><span data-icon="team"></span>Contas<span class="count-pill" id="open-count">0</span></button>
+      <button class="bar-button bar-primary" data-action="profile-create" id="header-add"><span data-icon="plus"></span>Adicionar conta</button>
+      <button class="bar-icon" data-action="settings-open" title="Configurações" aria-label="Configurações"><span data-icon="settings"></span></button>
+      <button class="bar-icon" data-action="help-open" title="Como usar" aria-label="Como usar"><span data-icon="help"></span></button>
+      <button class="bar-icon" data-action="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia (F11)"><span data-icon="maximize"></span></button>
+    </header>
+    <div class="preview-banner" id="preview-banner" hidden><span data-icon="info"></span><span>Prévia da interface — os jogos abrem no aplicativo Windows.</span></div>
+    <main class="main-area"><section class="game-workspace" id="game-workspace" aria-label="Painéis do jogo"></section></main>
+  </div>
+
+  <dialog class="dialog profiles-dialog" id="profiles-dialog" aria-labelledby="profiles-title">
+    <div class="dialog-heading"><div><div class="eyebrow">CONTAS LOCAIS</div><h2 id="profiles-title">Seus perfis</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <p class="dialog-intro">Cada perfil mantém uma sessão separada. Clique em um perfil para abrir ou selecionar o jogo; nos três pontos, você pode renomear ou excluir.</p>
+    <div class="profiles-heading"><span>PERFIS</span><span id="profile-count">0 / 4</span></div>
+    <nav class="profile-list" id="profile-list" aria-label="Perfis do PokeIdle"></nav>
+    <button class="add-profile-button" id="sidebar-add" data-action="profile-create"><span data-icon="plus"></span><span>Adicionar conta</span></button>
+    <div class="dialog-footer"><span class="profiles-local-note"><span data-icon="shield"></span>Login direto no PokeIdle</span><div class="footer-spacer"></div><button class="button button-subtle" id="open-all-button" data-action="open-all"><span data-icon="play"></span>Abrir todas</button></div>
+  </dialog>
+
+  <dialog class="dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
+    <div class="dialog-heading"><div><div class="eyebrow">DO SEU JEITO</div><h2 id="profile-dialog-title">Novo perfil</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <p class="dialog-intro">Um perfil mantém o login e os dados do jogo separados dos outros. Você entra na conta diretamente no PokeIdle.</p>
+    <form id="profile-form">
+      <label class="field-label" for="profile-name">Nome do perfil</label><input class="text-input" id="profile-name" name="name" placeholder="Ex.: Principal, Farm, Bulbasaur…" maxlength="32" autocomplete="off" required>
+      <div class="field-heading"><span class="field-label">Cor de identificação</span><span>Escolha a sua</span></div><div class="color-options" id="profile-colors" role="radiogroup" aria-label="Cor do perfil"></div>
+      <div class="profile-preview"><div class="profile-avatar large" id="profile-preview-avatar">P</div><div><strong id="profile-preview-name">Seu perfil</strong><span>Uma sessão independente do PokeIdle</span></div><span data-icon="check"></span></div>
+      <div class="inline-error" id="profile-error" role="alert" hidden></div>
+      <div class="dialog-footer profile-form-footer"><button class="button button-danger-subtle" type="button" data-action="profile-delete" id="profile-delete-button" hidden><span data-icon="trash"></span>Excluir perfil</button><div class="footer-spacer"></div><button class="button button-subtle" type="button" data-action="dialog-close">Cancelar</button><button class="button button-primary" type="submit" id="profile-save-button">Criar e abrir <span data-icon="arrow-right"></span></button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><div><div class="eyebrow">SEU IDLE BOARD</div><h2 id="settings-title">Configurações</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <section class="settings-section"><h3>Aparência</h3><p>Escolha a cor de destaque do seu espaço.</p><div class="theme-options" role="group" aria-label="Tema"><button class="theme-option" data-action="theme" data-theme-value="forest"><span class="theme-sample forest"></span><span>Floresta</span><span class="theme-check" data-icon="check"></span></button><button class="theme-option" data-action="theme" data-theme-value="ocean"><span class="theme-sample ocean"></span><span>Oceano</span><span class="theme-check" data-icon="check"></span></button><button class="theme-option" data-action="theme" data-theme-value="violet"><span class="theme-sample violet"></span><span>Violeta</span><span class="theme-check" data-icon="check"></span></button></div></section>
+    <section class="settings-section"><div class="setting-row"><div><h3>Manter o computador ativo</h3><p>Evita a suspensão automática enquanto o aplicativo estiver aberto. A tela ainda pode apagar.</p></div><button class="switch" id="keep-awake-toggle" data-action="keep-awake" role="switch" aria-checked="false" aria-label="Manter o computador ativo"><span></span></button></div><p class="setting-note"><span data-icon="info"></span>Fechar o aplicativo encerra as conexões. Este controle não impede desligamentos nem garante conexão com o servidor.</p></section>
+    <section class="settings-section"><h3>Seus dados</h3><p>Exporte preferências de aparência, layout e medições. Perfis e sessões de login permanecem neste computador.</p><div class="data-actions"><button class="button button-subtle" data-action="data-export"><span data-icon="download"></span>Exportar preferências e medições</button><button class="button button-subtle" data-action="data-import"><span data-icon="upload"></span>Importar preferências e medições</button></div><button class="text-button" data-action="data-folder"><span data-icon="folder"></span>Abrir pasta dos dados locais<span data-icon="arrow-up-right"></span></button></section>
+    <div class="about-strip"><div class="mini-brand">ISGROI <span>/</span> IDLE BOARD</div><span id="about-version">Aplicativo local</span></div>
+  </dialog>
+
+  <dialog class="dialog help-dialog" id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><div><div class="eyebrow">PRONTO PARA COMEÇAR</div><h2 id="help-title">O jogo no centro.</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <div class="help-steps"><div><span class="step-number">01</span><div><h3>Crie um perfil para cada conta</h3><p>Escolha um nome e uma cor. Cada perfil guarda uma sessão própria neste computador. Você pode criar até quatro.</p></div></div><div><span class="step-number">02</span><div><h3>Entre diretamente no PokeIdle</h3><p>O jogo abre de <strong>https://pokeidle.io/app</strong>. Você não cria uma conta no IdleBoard; o login acontece dentro do jogo.</p></div></div><div><span class="step-number">03</span><div><h3>Escolha como quer jogar</h3><p>Use os três ícones no topo para Grade, Foco ou Um por vez. As outras contas seguem conectadas. Sair fecha o painel e encerra essa conexão; o login local permanece salvo.</p></div></div><div><span class="step-number">04</span><div><h3>Compare o seu farm com dados reais</h3><p>Entre no jogo, escolha a hunt e inicie uma medição em Meu farm. Ao parar, o resultado observado fica salvo para comparar suas tentativas.</p></div></div></div>
+    <div class="help-notice"><span data-icon="info"></span><p>Use <strong>uma janela por conta</strong>. Abrir a mesma conta em outro lugar pode interromper a sessão, conforme o comportamento do jogo.</p></div>
+    <div class="shortcut-list"><span><kbd>Ctrl</kbd> + <kbd>1–4</kbd> Selecionar painel aberto</span><span><kbd>F11</kbd> Tela cheia</span><span><kbd>Esc</kbd> Fechar esta janela</span></div>
+    <div class="help-disclaimer">Projeto independente. PokeIdle e Pokémon pertencem aos seus respectivos responsáveis.</div>
+  </dialog>
+
+  <dialog class="dialog farm-dialog" id="farm-dialog" aria-labelledby="farm-title">
+    <div class="dialog-heading"><div><div class="eyebrow">MEDIR. COMPARAR. ESCOLHER.</div><h2 id="farm-title">Meu farm<span class="title-period">.</span></h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <p class="dialog-intro">Compare o que aconteceu nas suas hunts. As taxas usam a experiência observada durante cada medição.</p>
+    <div class="farm-controls"><div class="farm-profile-field"><label class="field-label" for="farm-profile">Perfil</label><select class="text-input" id="farm-profile"></select></div><div class="farm-live-context" id="farm-live-context"></div><div id="farm-control-buttons"></div></div>
+    <div class="farm-notice" id="farm-notice" role="status"></div>
+    <div class="farm-metrics" id="farm-metrics"></div>
+    <div class="section-heading"><div><h3>Histórico de hunts</h3><p>Resultados guardados ao encerrar uma medição.</p></div><span class="count-pill" id="trial-count">0</span></div>
+    <div class="trial-table-wrap"><table class="trial-table"><thead><tr><th>Perfil / hunt</th><th>Pokémon</th><th><button data-action="sort-trials" data-sort="elapsedMs">Duração <span data-icon="sort"></span></button></th><th class="numeric"><button data-action="sort-trials" data-sort="pokemonXpPerHour">XP Pokémon/h <span data-icon="sort"></span></button></th><th class="numeric"><button data-action="sort-trials" data-sort="trainerXpPerHour">XP treinador/h <span data-icon="sort"></span></button></th><th class="numeric"><button data-action="sort-trials" data-sort="goldDelta">Ouro <span data-icon="sort"></span></button></th><th class="table-actions"><span class="sr-only">Ações</span></th></tr></thead><tbody id="trial-rows"></tbody></table><div class="trial-empty" id="trial-empty"><span data-icon="chart"></span><strong>Cada teste conta uma história.</strong><p>Conclua a primeira medição para comparar hunts aqui.</p></div></div>
+    <details class="farm-calculator"><summary><span data-icon="calculator"></span>Quanto falta para a sua meta?<span class="calculator-caption">Calculadora manual</span><span data-icon="chevron-down"></span></summary><div class="calculator-body"><label><span class="field-label">XP que ainda falta</span><input class="text-input" id="calculator-xp" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 12000"></label><label><span class="field-label">XP por hora observado</span><input class="text-input" id="calculator-rate" type="number" min="0" step="any" inputmode="decimal" placeholder="Ex.: 3000"></label><div class="calculator-result"><span class="field-label">Tempo estimado</span><strong id="calculator-result">—</strong></div><p>Conta manual: XP restante ÷ XP por hora. A estimativa supõe que essa taxa continue igual.</p></div></details>
+  </dialog>
+
+  <dialog class="dialog lives-dialog" id="lives-dialog" aria-labelledby="lives-title">
+    <div class="dialog-heading"><div><div class="eyebrow">GERAL / LIVES</div><h2 id="lives-title">Lives do PokeIdle</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <p class="dialog-intro">Consulte os canais listados pelo jogo e abra a transmissão no navegador padrão do Windows.</p>
+    <div class="tool-query-row"><label><span class="field-label">Conta conectada</span><select class="text-input" id="lives-profile"></select></label><button class="button button-primary" data-action="lives-refresh" id="lives-refresh"><span data-icon="reload"></span>Carregar lives</button></div>
+    <div class="query-status" id="lives-status" role="status"></div>
+    <div id="lives-content"></div>
+    <p class="tool-footnote">Para abrir no Chrome, deixe-o como navegador padrão do Windows. O IdleBoard não faz login em serviços de streaming.</p>
+  </dialog>
+
+  <dialog class="dialog stones-dialog" id="stones-dialog" aria-labelledby="stones-title">
+    <div class="dialog-heading"><div><div class="eyebrow">GERAL / MERCADO</div><h2 id="stones-title">Pedras abaixo do mercado</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <p class="dialog-intro">Compare o menor preço por unidade com a média ponderada das vendas dos últimos 7 dias informada pelo jogo.</p>
+    <div class="tool-query-row"><label><span class="field-label">Conta conectada</span><select class="text-input" id="stones-profile"></select></label><button class="button button-primary" data-action="stones-scan" id="stones-scan"><span data-icon="search"></span>Buscar pedras</button><button class="button button-subtle" data-action="stones-cancel" id="stones-cancel" hidden>Cancelar</button></div>
+    <div class="query-status" id="stones-status" role="status"></div>
+    <div class="stones-filters"><label class="checkbox-label"><input type="checkbox" id="stones-only-below" checked><span>Só abaixo da média</span></label><label class="discount-filter"><span>Desconto mínimo</span><input class="text-input" id="stones-min-discount" type="number" min="0" max="100" value="0" inputmode="decimal"><span>%</span></label><span id="stones-result-count"></span></div>
+    <div class="stones-table-wrap"><table class="stones-table"><thead><tr><th>Pedra</th><th class="numeric">Menor preço / un.</th><th class="numeric">Média de 7 dias</th><th class="numeric">Diferença</th><th><span class="sr-only">Ação</span></th></tr></thead><tbody id="stones-rows"></tbody></table><div id="stones-content"></div></div>
+    <p class="tool-footnote">Os preços podem mudar após a consulta. “Ver no jogo” abre o item para você conferir; nenhuma compra é feita pelo painel. Sem histórico suficiente, a média não é calculada.</p>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" role="status" aria-live="polite" aria-atomic="false"></div>
+</body>
+</html>

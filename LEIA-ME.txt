@@ -1,0 +1,128 @@
+IDLEBOARD ISGROI — 1.0.0
+Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
+
+COMEÇAR
+
+1. Extraia TODO o arquivo ZIP para uma pasta sua, por exemplo Documentos\IdleBoard-Isgroi.
+2. Abra IdleBoard-Isgroi.exe. Não execute dentro do ZIP e não separe o .exe das outras pastas.
+3. Clique em Contas / Adicionar conta. Escolha um nome para identificar o perfil.
+4. Entre na sua conta na página oficial do PokeIdle que aparece no painel.
+5. Repita para as outras contas. O layout Grade distribui até quatro jogos em quadrantes.
+
+Não é necessário instalar Node, Python ou contratar um serviço. O programa usa internet
+para acessar o próprio jogo. O código do painel funciona no seu computador.
+
+BARRA COMPACTA
+
+Grade / Foco / Um por vez: muda a disposição. Os painéis abertos continuam funcionando.
+Lives: escolha uma conta conectada, carregue os canais e abra a live no navegador padrão.
+Pedras: escolha a conta e consulte preços diretamente na interface do Mercado do jogo.
+Contas: criar, renomear, abrir, fechar e remover os perfis locais.
+Meu farm: medir o XP observado e comparar testes de hunts.
+Configurações: temas, manter PC ativo e exportar/importar preferências e medições.
+
+EM CADA QUADRANTE
+
+Itens: abre a bolsa do jogo.
+Vendas: abre o Histórico de Vendas do mercado do jogo.
+Time: mostra a equipe. Não troca nem vende Pokémon.
+Eco: alterna o Modo Economia oficial do jogo.
+− / porcentagem / +: zoom individual. Começa em 60% para caber mais jogo no quadrante.
+Som: liga/desliga o áudio apenas desse painel. Novos perfis começam sem som.
+Ampliar: coloca a conta em destaque individual; use Grade para voltar às quatro telas.
+Recarregar: recarrega aquela conta.
+Sair: fecha esse painel e encerra sua conexão. O login local pode ser reutilizado ao abrir.
+
+Atalhos: F11 alterna tela cheia. Ctrl+1, Ctrl+2, Ctrl+3 e Ctrl+4 selecionam painéis abertos.
+
+PEDRAS ABAIXO DO MERCADO
+
+A consulta usa a categoria Pedras e a moeda Coins/ouro. Ela compara o menor preço
+UNITÁRIO anunciado com a média UNITÁRIA de vendas dos últimos 7 dias exibida pelo jogo.
+Essa média é ponderada pelas unidades vendidas. Não é uma avaliação garantida de valor.
+
+Diferença (%) = (média de 7 dias − menor anúncio) ÷ média de 7 dias × 100.
+
+O programa consulta até 32 pedras por leitura, com intervalo mínimo entre seleções.
+Mostra o progresso e permite cancelar. Sem referência disponível, mostra Sem histórico.
+O botão Ver no jogo abre a pedra no Mercado para você conferir as ofertas.
+As compras são feitas por você no jogo; a ferramenta não compra automaticamente.
+
+A consulta abre filtros/modais na conta escolhida. Evite mexer nessa conta durante a
+leitura: uma interação manual no jogo cancela a consulta. Preços podem mudar depois
+de lidos. Atualize antes de decidir. Ofertas em Gemas/orb não são comparadas nesta versão.
+
+LIVES
+
+Lê os canais AO VIVO nas listas oficiais de Twitch e Kick exibidas pela sua conta.
+Os links abrem no navegador padrão do Windows; se ele for o Chrome, abrirão no Chrome.
+O painel não vincula contas de streaming nem promete ativar bônus automaticamente.
+Se não houver canais no ar ou a lista não estiver disponível, isso aparece no painel.
+
+MEU FARM
+
+Inicie uma medição com a conta conectada e mantenha a mesma hunt e o mesmo Pokémon.
+As taxas por hora aparecem após pelo menos 60 segundos de observação contínua.
+Ao parar, o trecho válido é salvo para comparar. Pode usar 5–10 minutos para reduzir
+o peso das variações de combates curtos.
+
+XP é o ganho OBSERVADO da conta, podendo incluir outras atividades além da hunt.
+Ouro é a variação LÍQUIDA do saldo: compras e vendas também alteram esse valor.
+Troca de hunt/Pokémon, logout, reconexão ou mudança de XP impossível de medir encerra
+o trecho. O programa não inventa XP quando faltam informações na interface.
+
+DADOS E LOGIN
+
+Não existe conta do IdleBoard Isgroi, mensalidade, backend do painel ou telemetria própria.
+Você digita as credenciais somente no formulário oficial do jogo/provedor que escolher.
+Cada perfil usa uma sessão Chromium separada. Cookies e dados do jogo ficam no perfil
+local do Windows; o painel não lê senhas, tokens, cookies ou storage do jogo.
+PokeIdle, seus provedores de login e as lives recebem os acessos normais aos seus sites.
+
+Pasta padrão dos dados: %APPDATA%\IdleBoard Isgroi
+O botão Abrir pasta dos dados locais mostra o caminho exato no seu computador.
+Exportar preferências e medições NÃO exporta senhas, cookies, logins nem perfis do jogo.
+Remover uma conta exige confirmação e apaga somente a sessão local desse perfil;
+não exclui sua conta nem seu progresso no servidor do jogo.
+
+PARA DEIXAR JOGANDO
+
+Mantenha o aplicativo aberto e a conexão com a internet ativa.
+Em Configurações, Manter computador ativo evita a suspensão automática enquanto há
+painéis abertos. A tela ainda pode apagar. Desligar o PC, fechar o programa ou a tampa
+do notebook pode interromper as sessões conforme as configurações do Windows.
+Evite abrir a MESMA conta simultaneamente no navegador e no painel: o jogo substitui
+a sessão anterior. Cada quadrante deve ter a conta que você deseja usar nele.
+
+SE ALGO NÃO ABRIR
+
+• Confira se a pasta do ZIP foi extraída inteira e use o executável dentro dela.
+• Falha ao carregar o jogo: confira a internet e use Recarregar ou o atalho inicial do jogo.
+• Atalho Itens/Vendas/Time/Eco indisponível: entre na conta e espere a interface carregar.
+• Mercado sem preço/referência: atualize a leitura; valores ausentes não viram zero.
+• O jogo mudou a interface: os atalhos e leitores podem precisar de atualização.
+• Login Google/Discord depende da compatibilidade do provedor com o navegador embutido.
+  Esses logins não foram autenticados durante a construção do aplicativo.
+
+VERIFICAÇÃO DESTA ENTREGA
+
+Código e regras de leitura foram conferidos contra o cliente público v1.305.9 do jogo.
+Foram executados testes automatizados locais de parsers, medições, controles e isolamento.
+Nenhuma conta real foi usada no desenvolvimento. O executável Windows não foi executado
+neste ambiente Linux. A confirmação de login e das leituras na sua conta ocorre no seu PC.
+
+O pacote usa Electron 44.9.0 obtido da distribuição oficial e conferido por SHA-256.
+Não possui atualizador automático. Uma atualização do painel/runtime exige um novo pacote.
+O código-fonte editável está incluído na pasta codigo-fonte; o código executado fica em
+resources\app. Os avisos de licença do Electron e Chromium acompanham o programa.
+
+REFERÊNCIAS
+
+Jogo: https://pokeidle.io/app
+Cliente público consultado: https://pokeidle.io/app.js?v=1.305.9
+Regras do jogo: https://pokeidle.io/terms
+Inspiração de organização: https://teddera.com.br/idleboard/ e prints enviados pelo usuário.
+Electron: https://www.electronjs.org/docs/latest/tutorial/security
+
+Projeto independente. Não possui vínculo com o IdleBoard de terceiros, PokeIdle ou
+os titulares de Pokémon. Nenhum código do aplicativo concorrente foi usado.
