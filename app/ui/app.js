@@ -55,7 +55,7 @@
     {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
     {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.8', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.9', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -201,12 +201,13 @@
     const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.matches('.panel-toolbar-restore,.panel-focus-exit'));
     const visibleIds=visibleOpenIds(),hideToolbar=Boolean(state.toolbarHidden)&&visibleIds.length>0;
     const farmRunning=Object.values(state.runtime).some(r=>r.farm?.running),accounts=accountViewInputs();
-    drawChanged('shell',[state.version,state.system?.devMode,state.profiles.map(p=>p.id),state.openIds,state.focusedId,state.layout,hideToolbar,state.keepAwake,farmRunning],()=>{
+    drawChanged('shell',[state.version,state.system?.devMode,state.system?.backgroundThrottlingTest,state.profiles.map(p=>p.id),state.openIds,state.focusedId,state.layout,hideToolbar,state.keepAwake,farmRunning],()=>{
       toolbar.hidden=hideToolbar;
       $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
       document.documentElement.dataset.theme = 'blue';
       document.documentElement.dataset.mode = state.system?.devMode ? 'development' : 'production';
       $('#dev-banner').hidden = !state.system?.devMode;
+      if(state.system?.devMode)$('#dev-banner-message').textContent = state.system?.backgroundThrottlingTest ? 'Teste: economia em painéis ocultos · sessões separadas' : 'Comparação: comportamento original · sessões separadas';
       $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
       $('#preview-banner').hidden = !isPreview;
       $('#profile-count').textContent = `${state.profiles.length} / 4`;
@@ -255,8 +256,12 @@
       const status=Object.entries(state.runtime).map(([key,r])=>[key,r.hunt?.status,r.status,r.stats?.loggedIn,r.stats?.status,r.stats?.economy,r.ecoNotice]);
       drawChanged('settings',[profiles,state.huntEnabled,state.system?.huntEnabledAtStartup,status,pending.has('game:eco-all:')],()=>{renderHuntSettings();renderPerformanceSettings();},force);
     }else if(id==='farm-dialog'){
-      // Keep the complete readings, including HP and farm counters, while this dialog is visible.
-      drawChanged('farm',[profiles,farmProfileId,state.runtime,state.trials,trialSort],renderFarm,force);
+      const selectedFarm = state.profiles.some(p=>p.id===farmProfileId) ? farmProfileId : state.focusedId||state.profiles[0]?.id||null;
+      // Live readings follow only the selected account. Comparing the trial
+      // data catches imports that replace a record but retain its ID, without
+      // rebuilding the history DOM on every game heartbeat.
+      drawChanged('farm-live',[profiles,selectedFarm,runtime(selectedFarm)],renderFarm,force);
+      drawChanged('farm-history',[state.trials,trialSort],renderFarmHistory,force);
     }else if(id==='lives-dialog'){
       drawChanged('lives',[profiles,livesProfileId,state.tools?.lives,state.openIds.map(key=>runtime(key).stats?.loggedIn)],renderLives,force);
     }else if(id==='stones-dialog'){
@@ -504,6 +509,8 @@
       ['clock','Tempo observado',farm?duration(currentElapsed(farm)):'—',farm?.running?'Medição em andamento':farm?'Medição encerrada':'Sem medição ativa']
     ];
     setHTML($('#farm-metrics'),metrics.map(([i,title,value,detail])=>`<div class="metric-card"><span class="metric-label">${icon(i)}${title}</span><strong>${esc(value)}</strong><span class="metric-detail">${esc(detail)}</span></div>`).join(''));
+  }
+  function renderFarmHistory() {
     $('#trial-count').textContent=String(state.trials.length);
     const trials=[...state.trials].sort((a,b)=>{
       const av=Number(a[trialSort.key]),bv=Number(b[trialSort.key]);
@@ -518,7 +525,7 @@
       else th.removeAttribute('aria-sort');
     });
   }
-  $('#farm-profile').addEventListener('change',event=>{farmProfileId=event.target.value;renderFarm();});
+  $('#farm-profile').addEventListener('change',event=>{farmProfileId=event.target.value;renderDialogContents('farm-dialog');});
   function calculateGoal() {
     const xp=Number($('#calculator-xp').value),rate=Number($('#calculator-rate').value),hasValues=$('#calculator-xp').value!==''&&$('#calculator-rate').value!=='';
     const output=$('#calculator-result');
@@ -640,7 +647,7 @@
       case 'farm-start':await call('farm:start',{id});break;
       case 'farm-stop':await call('farm:stop',{id});break;
       case 'trial-delete':await call('trial:delete',{id});break;
-      case 'sort-trials':trialSort={key:button.dataset.sort,direction:trialSort.key===button.dataset.sort?-trialSort.direction:-1};renderFarm();break;
+      case 'sort-trials':trialSort={key:button.dataset.sort,direction:trialSort.key===button.dataset.sort?-trialSort.direction:-1};renderDialogContents('farm-dialog');break;
       case 'game-tool':await call('game:tool',{id,tool:button.dataset.tool});break;
       case 'lives-open':await openDialog('lives-dialog');break;
       case 'stones-open':await openDialog('stones-dialog');break;

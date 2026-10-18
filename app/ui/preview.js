@@ -5,7 +5,7 @@ if (!window.idleBoard) {
   (() => {
     const STORAGE_KEY='idleboard-isgroi-interface-preview-v1';
     const PROFILE_COLORS=['#77aaff','#57bbff','#6d93ff','#91c7ff','#488fe6','#779dd8'];
-    const initial={version:'1.0.8',profiles:[],openIds:[],focusedId:null,layout:'grid',focusLayout:'single',theme:'blue',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
+    const initial={version:'1.0.9',profiles:[],openIds:[],focusedId:null,layout:'grid',focusLayout:'single',theme:'blue',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
     let state={...initial};
     const listeners=new Set();
     try {

@@ -7,8 +7,10 @@ const { randomUUID } = require('node:crypto');
 const model = require('./model.cjs');
 const { createFarmTracker } = require('./farm-metrics.cjs');
 const { HUNT_VERSION, createHuntLoader } = require('./hunt-extension.cjs');
+const { gameBackgroundThrottling } = require('./performance-mode.cjs');
 
 const IS_DEV_MODE = process.env.IDLEBOARD_MODE === 'development';
+const THROTTLE_GAME_BACKGROUND = gameBackgroundThrottling(process.env);
 const APP_NAME = IS_DEV_MODE ? 'IdleBoard Isgroi DEV' : 'IdleBoard Isgroi';
 
 app.setName(APP_NAME);
@@ -31,20 +33,23 @@ let overlayVisible = false;
 let lastBounds = {};
 let blocker = null;
 let saveTimer = null;
+let preferencesDirty = false;
 let quitting = false;
 let huntLoader;
 let requestedViewFocus = null;
 let stateUpdateTimer = null;
 
 function persist() {
-  if (!configPath) return;
+  if (!configPath || !preferencesDirty) return;
   const temporary = configPath + '.tmp';
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(temporary, JSON.stringify(state, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(temporary, configPath);
+  preferencesDirty = false;
 }
 
 function scheduleSave() {
+  preferencesDirty = true;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { try { persist(); } catch { notifyStorageFailure(); } }, 150);
 }
@@ -54,7 +59,7 @@ function notifyStorageFailure() {
 }
 
 function publicState() {
-  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron, huntEnabledAtStartup: huntLoader?.enabled ?? state.huntEnabled, devMode: IS_DEV_MODE } };
+  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron, huntEnabledAtStartup: huntLoader?.enabled ?? state.huntEnabled, devMode: IS_DEV_MODE, backgroundThrottlingTest: THROTTLE_GAME_BACKGROUND } };
 }
 
 function emit() {
@@ -68,14 +73,18 @@ function scheduleStateUpdate() {
 }
 
 function stopProfileQueries(id, reason) {
+  let changed = false;
   if (toolsState.market?.profileId === id && toolsState.market.scanning) {
     toolsState.market.scanning = false;
     toolsState.market.error = reason;
+    changed = true;
   }
   if (toolsState.lives?.profileId === id && toolsState.lives.loading) {
     toolsState.lives.loading = false;
     toolsState.lives.error = reason;
+    changed = true;
   }
+  return changed;
 }
 
 function safeUI(event) {
@@ -150,18 +159,26 @@ function finishFarm(id, reason = '', metricOverride = null) {
 function consumeStats(id, stats) {
   const r = runtime[id];
   if (!r) return;
+  const previous = r.stats;
+  const { at: _previousAt, ...previousData } = previous || {};
+  const { at: _nextAt, ...nextData } = stats;
+  const readingsChanged = !previous || JSON.stringify(previousData) !== JSON.stringify(nextData);
   r.stats = stats;
+  let queriesChanged = false;
   if (!stats.loggedIn || ['offline', 'reconnecting', 'session_elsewhere', 'account_alert'].includes(stats.status)) {
-    stopProfileQueries(id, 'A consulta foi interrompida. Entre no jogo e consulte novamente.');
+    queriesChanged = stopProfileQueries(id, 'A consulta foi interrompida. Entre no jogo e consulte novamente.');
   }
   const entry = farms.get(id);
+  const wasFarmRunning = Boolean(entry?.running);
   if (entry?.running) {
     const previous = entry.tracker.current();
     const next = entry.tracker.update(stats);
     if (!next.valid || (previous.startedAt && next.startedAt !== previous.startedAt)) finishFarm(id, next.reason, previous);
     else r.farm = farmSnapshot(entry, next);
   }
-  scheduleStateUpdate();
+  // The heartbeat still refreshes stats.at for freshness and farm-gap checks,
+  // but an unchanged reading does not need another full renderer state.
+  if (readingsChanged || queriesChanged || wasFarmRunning) scheduleStateUpdate();
 }
 
 function updatePowerBlocker() {
@@ -282,7 +299,7 @@ function createGameView(id) {
     session: ses, preload: path.join(__dirname, 'game-preload.cjs'),
     nodeIntegration: false, nodeIntegrationInWorker: false, nodeIntegrationInSubFrames: false,
     contextIsolation: true, sandbox: true, webSecurity: true, webviewTag: false,
-    allowRunningInsecureContent: false, backgroundThrottling: false,
+    allowRunningInsecureContent: false, backgroundThrottling: THROTTLE_GAME_BACKGROUND,
     navigateOnDragDrop: false, spellcheck: false,
   } });
   views.set(id, view);
@@ -376,7 +393,9 @@ function closePanel(id, reason = 'panel_closed') {
 
 async function performAction(action, payload) {
   const p = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+  const previousPreferences = JSON.stringify(state);
   let message = '';
+  let saveNeeded = true;
   switch (action) {
     case 'profile:add': {
       if (state.profiles.length >= model.MAX_PROFILES) throw new Error('O painel aceita até quatro contas. Esse também é o limite pessoal informado pelo PokeIdle.');
@@ -419,8 +438,8 @@ async function performAction(action, payload) {
       break;
     }
     case 'panel:close': getProfile(p.id); closePanel(p.id); break;
-    case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); break;
-    case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); break;
+    case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); saveNeeded = false; break;
+    case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); saveNeeded = false; break;
     case 'panel:focus': getView(p.id); selectAccount(p.id); break;
     case 'focus:enter': enterFocus(p.id); break;
     case 'panel:zoom': {
@@ -457,8 +476,9 @@ async function performAction(action, payload) {
       updatePowerBlocker();
       break;
     }
-    case 'window:fullscreen': window.setFullScreen(!window.isFullScreen()); break;
+    case 'window:fullscreen': window.setFullScreen(!window.isFullScreen()); saveNeeded = false; break;
     case 'game:eco-all': {
+      saveNeeded = false;
       const eligible = state.openIds.filter(id => {
         const r = runtime[id], view = views.get(id);
         return view && !view.webContents.isDestroyed() && model.isGameURL(view.webContents.getURL())
@@ -489,6 +509,7 @@ async function performAction(action, payload) {
       break;
     }
     case 'game:tool': {
+      saveNeeded = false;
       const view = getView(p.id);
       const allowedTools = ['items', 'sales', 'team', 'economy', 'lives', 'scan-stones', 'cancel-scan', 'view-stone'];
       if (!allowedTools.includes(p.tool)) throw new Error('Ferramenta desconhecida.');
@@ -504,14 +525,16 @@ async function performAction(action, payload) {
       break;
     }
     case 'live:open': {
+      saveNeeded = false;
       const url = model.liveURL(p.url);
       if (!url || !toolsState.lives?.links.some(link => link.url === url)) throw new Error('Escolha um canal da lista de lives carregada pelo jogo.');
       await shell.openExternal(url);
       message = 'Live aberta no seu navegador padrão.';
       break;
     }
-    case 'data:open-folder': await shell.openPath(app.getPath('userData')); break;
+    case 'data:open-folder': await shell.openPath(app.getPath('userData')); saveNeeded = false; break;
     case 'data:export': {
+      saveNeeded = false;
       const answer = await dialog.showSaveDialog(window, { title: 'Exportar preferências e medições', defaultPath: 'IdleBoard-Isgroi-preferencias.json', filters: [{ name: 'Backup JSON', extensions: ['json'] }] });
       if (!answer.canceled && answer.filePath) fs.writeFileSync(answer.filePath, JSON.stringify(model.exportPreferences(state), null, 2), { encoding: 'utf8', mode: 0o600 });
       message = answer.canceled ? '' : 'Preferências e medições exportadas. Logins e sessões não foram incluídos.';
@@ -519,7 +542,7 @@ async function performAction(action, payload) {
     }
     case 'data:import': {
       const answer = await dialog.showOpenDialog(window, { title: 'Importar preferências e medições', filters: [{ name: 'Backup JSON', extensions: ['json'] }], properties: ['openFile'] });
-      if (answer.canceled || !answer.filePaths[0]) break;
+      if (answer.canceled || !answer.filePaths[0]) { saveNeeded = false; break; }
       if (fs.statSync(answer.filePaths[0]).size > 2 * 1024 * 1024) throw new Error('O backup é grande demais. O limite é 2 MB.');
       let raw;
       try { raw = JSON.parse(fs.readFileSync(answer.filePaths[0], 'utf8')); } catch { throw new Error('Não foi possível ler esse arquivo JSON.'); }
@@ -530,6 +553,7 @@ async function performAction(action, payload) {
       break;
     }
     case 'farm:start': {
+      saveNeeded = false;
       getView(p.id);
       const stats = runtime[p.id]?.stats;
       if (!stats?.loggedIn || !['game_visible', 'fainted'].includes(stats.status) || Date.now() - stats.at > 40000) throw new Error('Entre no jogo e aguarde uma leitura de XP antes de iniciar a medição.');
@@ -543,12 +567,12 @@ async function performAction(action, payload) {
       message = 'Medição iniciada. Mantenha a mesma hunt e o mesmo Pokémon por pelo menos 60 segundos.';
       break;
     }
-    case 'farm:stop': getProfile(p.id); message = finishFarm(p.id) || 'Não há uma medição em andamento.'; break;
+    case 'farm:stop': getProfile(p.id); message = finishFarm(p.id) || 'Não há uma medição em andamento.'; saveNeeded = false; break;
     case 'trial:delete': state.trials = state.trials.filter(trial => trial.id !== p.id); break;
     default: throw new Error('Ação não reconhecida.');
   }
   applyBounds();
-  scheduleSave();
+  if (saveNeeded && JSON.stringify(state) !== previousPreferences) scheduleSave();
   emit();
   return { ok: true, message, state: publicState() };
 }
