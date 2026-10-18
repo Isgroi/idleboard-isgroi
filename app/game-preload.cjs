@@ -2,6 +2,7 @@
 
 // Read-only statistics and explicit UI-navigation adapter. Selectors checked against the public official client:
 // https://pokeidle.io/app and https://pokeidle.io/app.js?v=1.305.9 (2026-10-18).
+// Economy ON-only controls and these HUD counters rechecked in public client 1.314.2.
 // The game renders these values in pintarTreinador(), pintarAtivo(), pintarTime().
 // No passwords, cookies, storage, page JavaScript, network interception or trade commands.
 // Explicit tools only click a closed allowlist of official navigation/filter controls.
@@ -149,7 +150,7 @@
   // Market sources: linhaVitrineItem(), painelItemMercado(), htmlMediaDeVenda().
   // Reference is the game's unit-weighted mean of SALES in 7 days, never a median.
   // Lives sources: linhaTwitch/Kick() and montarTwitch/Kick(). No linking buttons.
-  const TOOLS = new Set(['scan-stones', 'cancel-scan', 'view-stone', 'lives', 'items', 'sales', 'team', 'economy']);
+  const TOOLS = new Set(['scan-stones', 'cancel-scan', 'view-stone', 'lives', 'items', 'sales', 'team', 'economy', 'economy-on']);
   const MAX_STONES = 32;
   const REQUEST_GAP_MS = 750;
   let operationId = 0;
@@ -168,7 +169,9 @@
   }
 
   function toolResult(tool, ok, error = null) {
-    sendTool('game:tool-result', { tool, ok, ...(error ? { error } : {}) });
+    const economy = ok && ['economy', 'economy-on'].includes(tool)
+      ? document.documentElement.classList.contains('modo-economia') : undefined;
+    sendTool('game:tool-result', { tool, ok, ...(error ? { error } : {}), ...(typeof economy === 'boolean' ? { economy } : {}) });
   }
 
   function cancelOperation(error = 'Consulta cancelada.') {
@@ -207,6 +210,46 @@
       await pause(100);
     }
     throw new Error('O jogo não terminou de carregar esta consulta.');
+  }
+
+  // Used only for the explicit Eco action, never in the two-second HUD poll.
+  // A shortcut can exist under a hidden hunt/arena; only use rendered controls.
+  function visiblyShown(element) {
+    if (!element || typeof element.getClientRects !== 'function' || !element.getClientRects().length) return false;
+    for (let node = element; node; node = node.parentElement) {
+      if (!shown(node)) return false;
+      const style = window.getComputedStyle(node);
+      if (style.display === 'none' || ['hidden', 'collapse'].includes(style.visibility) || style.opacity === '0') return false;
+    }
+    return true;
+  }
+
+  function gameDialogOpen() {
+    return shown(find('#modal')) || all('.modal, [role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')
+      .some(visiblyShown);
+  }
+
+  async function enableEconomy(op) {
+    if (document.documentElement.classList.contains('modo-economia')) return;
+    if (gameDialogOpen()) throw new Error('Feche o menu ou a janela aberta no jogo desta conta e tente ativar o Eco novamente.');
+    const shortcut = ['#hunt-eco', '#arena-eco'].map(selector => find(selector)).find(visiblyShown);
+    if (shortcut) click(shortcut, op);
+    else {
+      const settings = find('#btn-config');
+      if (!visiblyShown(settings)) throw new Error('O atalho Eco não está disponível nesta tela do jogo.');
+      click(settings, op);
+      const toggle = await waitFor(() => find('#cfg-corpo #cfg-economia'), op, 3_000);
+      // The switch toggles: never click unless its official state is explicitly OFF.
+      // The game closes its own configuration dialog after enabling economy.
+      if (!document.documentElement.classList.contains('modo-economia')) {
+        if (!visiblyShown(toggle) || toggle.getAttribute('aria-checked') !== 'false') {
+          throw new Error('Não foi possível confirmar o controle Eco nesta conta. Confira as Configurações do jogo.');
+        }
+        click(toggle, op);
+      }
+    }
+    await waitFor(() => document.documentElement.classList.contains('modo-economia'), op, 3_000);
+    sample(true);
   }
 
   function money(element) {
@@ -404,7 +447,7 @@
     const tool = message?.tool;
     if (!TOOLS.has(tool) || !isGamePage()) return;
     if (tool === 'cancel-scan') return cancelOperation();
-    cancelOperation('Consulta interrompida por outro atalho.');
+    if (tool !== 'economy-on') cancelOperation('Consulta interrompida por outro atalho.');
     const snapshot = readSnapshot();
     if (!snapshot.loggedIn || !['game_visible', 'fainted'].includes(snapshot.status)) {
       const error = 'Entre na conta no jogo e aguarde a conexão antes de usar este atalho.';
@@ -413,6 +456,10 @@
         available: false, scanning: false, scanned: 0, total: 0, catalog: [], source: 'visible-dom', error,
       });
       return toolResult(tool, false, error);
+    }
+    if (tool === 'economy-on') {
+      if (snapshot.economy === true) { sample(true); return toolResult(tool, true); }
+      if (operation) return toolResult(tool, false, 'Aguarde a consulta desta conta terminar e tente ativar o Eco novamente.');
     }
     const op = { id: operationId, nick: snapshot.nick, startedAt: Date.now(), tool };
     operation = op;
@@ -430,7 +477,8 @@
         const panel = find('#p-equipe');
         if (!panel) throw new Error('O painel da equipe não está disponível.');
         panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } else if (tool === 'economy') {
+      } else if (tool === 'economy-on') await enableEconomy(op);
+      else if (tool === 'economy') {
         if (document.documentElement.classList.contains('modo-economia')) click(find('#eco-sair'), op);
         else {
           click(find('#btn-config'), op);
@@ -502,6 +550,7 @@
   // A real interaction inside the game takes priority over an in-progress scan.
   window.addEventListener('pointerdown', event => {
     if (event.isTrusted && operation?.tool === 'scan-stones') cancelOperation('Consulta cancelada porque você interagiu com o jogo.');
+    else if (event.isTrusted && operation?.tool === 'economy-on') cancelOperation('Ativação do Eco interrompida porque você interagiu com o jogo.');
   }, true);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => sample(true), { once: true });

@@ -23,6 +23,7 @@ function color(value) {
   return PROFILE_COLORS.includes(normalized) ? normalized : PROFILE_COLORS[0];
 }
 function zoom(value) { return typeof value === 'number' && Number.isFinite(value) ? Math.min(1.5, Math.max(0.35, Math.round(value * 100) / 100)) : 0.6; }
+function layoutZoom(state, id) { return state.layout === 'single' && state.focusedId === id ? 1 : 0.6; }
 function partitionFor(id) {
   if (!UUID.test(id)) throw new Error('Identificador de conta inválido.');
   return `persist:isgroi-${id}`;
@@ -179,4 +180,4 @@ function importPreferences(state, raw) {
   return state;
 }
 
-module.exports = { GAME_URL, MAX_PROFILES, UUID, THEMES, PROFILE_COLORS, LAYOUTS, FOCUS_LAYOUTS, text, number, color, zoom, partitionFor, initialState, restoreState, sanitizeStats, isGameURL, allowedNavigation, cleanBounds, cleanTrial, exportPreferences, importPreferences, liveURL, sanitizeMarket, sanitizeLives };
+module.exports = { GAME_URL, MAX_PROFILES, UUID, THEMES, PROFILE_COLORS, LAYOUTS, FOCUS_LAYOUTS, text, number, color, zoom, layoutZoom, partitionFor, initialState, restoreState, sanitizeStats, isGameURL, allowedNavigation, cleanBounds, cleanTrial, exportPreferences, importPreferences, liveURL, sanitizeMarket, sanitizeLives };

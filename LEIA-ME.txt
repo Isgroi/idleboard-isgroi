@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.3
+IDLEBOARD ISGROI — 1.0.5
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR
@@ -12,6 +12,36 @@ COMEÇAR
 Não é necessário instalar Node, Python ou contratar um serviço. O programa usa internet
 para acessar o próprio jogo. O código do painel funciona no seu computador.
 
+REDUZIR O CONSUMO DO COMPUTADOR
+
+Abra Configurações > Desempenho e clique em Ativar Eco nas contas abertas.
+O botão usa os controles oficiais do PokeIdle para ativar o Modo Economia em cada
+conta disponível. Ele simplifica o cenário e reduz o trabalho gráfico; a caça
+continua no jogo. A contagem confirma quantas contas estão com Eco ativo.
+
+Não é preciso fechar as outras contas. Uma conta já em Eco não é desligada pelo
+botão. Contas sem conexão, com consultas em andamento ou com um modal do jogo aberto
+são mantidas como estão. O painel mostra o motivo quando a ativação não é possível;
+aguarde a consulta ou feche o menu do jogo e tente novamente nas contas restantes.
+
+Para voltar ao cenário normal em uma conta, use Eco no cabeçalho daquele painel.
+A preferência fica no perfil local do jogo e o próprio PokeIdle a restaura.
+O IdleBoard não impõe Eco automaticamente ao abrir, mudar conta ou trocar layout.
+
+Meu Farm continua lendo o XP e os saldos atuais no HUD do jogo. As medições visuais
+de campo/abates da Hunt dependem de dados do cenário e podem ficar sem novas amostras
+no Eco. Use o visual normal para fazer essas medições/calibrações da extensão.
+
+O painel também elimina trabalho repetido nas atualizações dos dados: só refaz
+as partes que mudaram, só envia posições quando necessário e agrupa notificações
+próximas das quatro contas. O conteúdo de rodapés ocultos não é mais reconstruído.
+Uma medição de farm encerrada não mantém uma atualização periódica sem utilidade.
+
+As melhorias do painel são automáticas; Eco é uma escolha sua. Não foram aplicados
+congelamento de contas, desligamento de aceleração gráfica nem limites artificiais
+de memória. Quatro jogos e suas extensões ainda precisam de recursos do computador.
+Não há promessa de porcentagem de economia: CPU/RAM não foram medidos no seu Windows.
+
 BARRA COMPACTA, CONTAS E FOCO
 
 As contas abertas aparecem em abas pequenas no topo e em quadrados na lateral
@@ -24,6 +54,20 @@ A conta principal fica destacada. Uma conta aberta pode ainda estar na tela de l
 Multi: quatro jogos em quadrantes. Clicar dentro de um jogo apenas seleciona a conta.
 Total: a conta principal ocupa toda a área de jogo; as outras sessões ficam abertas.
 Dividido: metade da largura para a principal e metade para as outras três, empilhadas.
+
+ZOOM AUTOMÁTICO
+
+Ao entrar no modo Total, a conta principal passa automaticamente para 100% de zoom.
+Ao voltar ao Multi, todas as contas abertas passam para 60%. O Dividido também
+usa 60% para os jogos caberem nos painéis. Ao trocar a conta em Total pelas abas,
+lateral ou Ctrl+1 a Ctrl+4, a nova principal recebe 100% e as demais voltam a 60%.
+Ampliar um painel e reabrir o aplicativo também aplicam o zoom adequado ao modo.
+
+Os botões − e + continuam permitindo ajustes manuais. Eles são mantidos enquanto
+você permanece na mesma visualização; uma troca de modo, de conta em Total ou a
+reabertura do aplicativo aplica novamente o padrão automático. Clicar na porcentagem
+restaura o padrão: 100% na principal em Total, 60% nos demais painéis.
+Mudar o zoom não recarrega o jogo nem encerra a sessão.
 
 Clique em uma aba, em um quadrado da lateral ou use Ctrl+1 a Ctrl+4 para abrir o foco
 naquela conta. O aplicativo lembra sua última escolha entre Total e Dividido.
@@ -47,11 +91,11 @@ Lives: escolha uma conta conectada, carregue os canais e abra a live no navegado
 Pedras: escolha a conta e consulte preços diretamente na interface do Mercado do jogo.
 Contas: criar, renomear, abrir, fechar e remover os perfis locais.
 Meu farm: medir o XP observado e comparar testes de hunts.
-Configurações: Hunt, manter PC ativo e exportar/importar preferências e medições.
+Configurações: Desempenho/Eco, Hunt, manter PC ativo e exportar/importar preferências e medições.
 
 A interface do painel usa azul, com fundo escuro e marcadores em tons de azul.
 Temas e cores de perfil antigos são convertidos automaticamente na atualização.
-Nomes, identificadores, sessões, zoom e preferência da Hunt são mantidos.
+Nomes, identificadores, sessões e preferência da Hunt são mantidos.
 As páginas do PokeIdle e a extensão Hunt conservam seu próprio visual.
 
 /HUNT FOR POKEIDLE
@@ -87,7 +131,7 @@ Itens: abre a bolsa do jogo.
 Vendas: abre o Histórico de Vendas do mercado do jogo.
 Time: mostra a equipe. Não troca nem vende Pokémon.
 Eco: alterna o Modo Economia oficial do jogo.
-− / porcentagem / +: zoom individual. Começa em 60% para caber mais jogo no quadrante.
+− / porcentagem / +: ajuste individual; a porcentagem restaura o padrão do modo.
 Som: liga/desliga o áudio apenas desse painel. Novos perfis começam sem som.
 Ampliar: entra no foco Total dessa conta; use Sair do foco ou Multi para voltar.
 Recarregar: recarrega aquela conta.
@@ -178,12 +222,23 @@ SE ALGO NÃO ABRIR
 VERIFICAÇÃO DESTA ENTREGA
 
 Código e regras de leitura foram conferidos contra o cliente público v1.305.9 do jogo.
+O modo Economia, os controles de ativação e a continuidade dos contadores do HUD
+foram conferidos novamente no cliente público v1.314.2 em 18/10/2026.
 Foram executados testes automatizados locais de parsers, medições, controles e isolamento.
 Para Hunt, foram verificados a ordem de carregamento por sessão com objetos nativos
 simulados, o hook com mensagens sintéticas e a interface com/sem TM AoE em DOM simulado.
 Para a navegação, foi conferida a troca pelas abas, lateral e atalhos nos três modos,
 a saída do foco com barra recolhida, a atualização dos nomes e estados, a migração
 para azul e a preservação dos identificadores de sessão e do foco dos diálogos.
+Para o zoom automático, foram conferidos valores no estado e nas views simuladas,
+troca de contas em Total, retorno das quatro a 60%, ajustes manuais, recarregamento
+da página, abertura de perfis e substituição da conta principal ao fechar um painel.
+Para desempenho, a simulação de 120 atualizações com quatro contas e diálogos fechados
+passou de 480 leituras de geometria e 120 envios de tamanho para zero nessas duas
+operações repetidas. As mudanças reais de tamanho continuam atualizando as views.
+Foram verificados agrupamento de snapshots, ausência de atualizações após encerrar
+farm, Eco idempotente, contas ocupadas/desconectadas e avisos de confirmação.
+Essas são contagens sintéticas de operações, não medições de CPU/RAM no Windows.
 Nenhuma conta real foi usada no desenvolvimento. O executável Windows não foi executado
 neste ambiente Linux. O carregamento nativo da extensão e seus cálculos com sua conta
 conectada ainda precisam ser confirmados no seu PC.
@@ -197,6 +252,9 @@ REFERÊNCIAS
 
 Jogo: https://pokeidle.io/app
 Cliente público consultado: https://pokeidle.io/app.js?v=1.305.9
+Cliente público reconsultado para Eco/HUD: https://pokeidle.io/app.js?v=1.314.2
+Desenho do cenário e Economia: https://pokeidle.io/campo.mjs
+Preferências locais do jogo: https://pokeidle.io/preferencias.mjs
 Regras do jogo: https://pokeidle.io/terms
 Inspiração de organização: https://teddera.com.br/idleboard/ e prints enviados pelo usuário.
 Electron: https://www.electronjs.org/docs/latest/tutorial/security

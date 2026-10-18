@@ -1,6 +1,6 @@
 {
   "name": "idleboard-isgroi-source",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "private": true,
   "description": "Código-fonte do painel local para PokeIdle.io",
   "scripts": {

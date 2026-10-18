@@ -17,6 +17,9 @@ function harness({ stoneCount = 3, cancelAfterFirst = false, loggedIn = true, re
       this.textContent = value;
       this.value = '';
       this.hidden = false;
+      this.parentElement = null;
+      this.style = { display: 'block', visibility: 'visible', opacity: '1' };
+      this.getClientRects = () => this.style.display === 'none' || this.hidden ? [] : [{ width: 30, height: 30 }];
       this.classes = new Set(classes.split(' ').filter(Boolean));
       this.classList = { contains: key => this.classes.has(key) };
       this.attrs = attrs;
@@ -59,7 +62,13 @@ function harness({ stoneCount = 3, cancelAfterFirst = false, loggedIn = true, re
   const htmlClasses = new Set();
   const html = { classList: { contains: key => htmlClasses.has(key) } };
   put('#btn-config', '', '', {}, () => {
-    put('#cfg-economia', '', '', {}, () => htmlClasses.add('modo-economia'));
+    nodes.get('#modal').classes.delete('hidden');
+    const toggle = put('#cfg-economia', '', '', { 'aria-checked': 'false' }, () => {
+      htmlClasses.add('modo-economia');
+      nodes.get('#modal').classes.add('hidden');
+      toggle.attrs['aria-checked'] = 'true';
+    });
+    nodes.set('#cfg-corpo #cfg-economia', toggle);
   });
   put('#eco-sair', '', '', {}, () => htmlClasses.delete('modo-economia'));
   const rows = [];
@@ -138,7 +147,7 @@ function harness({ stoneCount = 3, cancelAfterFirst = false, loggedIn = true, re
     navigator: { onLine: true }, process: { isMainFrame: true }, URL,
     Event: class { constructor(type) { this.type = type; } },
     Date: class extends Date { static now() { return now; } },
-    window: { addEventListener(name, callback) { events.set(name, callback); } },
+    window: { addEventListener(name, callback) { events.set(name, callback); }, getComputedStyle: element => element.style },
     require(name) {
       assert.equal(name, 'electron');
       return { ipcRenderer: {
@@ -162,7 +171,8 @@ function harness({ stoneCount = 3, cancelAfterFirst = false, loggedIn = true, re
   }
   vm.runInNewContext(source, context);
   return {
-    sent, clicked, nodes, rows, context,
+    sent, clicked, nodes, rows, context, put, htmlClasses, events,
+    fire(tool, extra = {}) { ipc.get('game:tool')({}, { tool, ...extra }); },
     async run(tool, extra = {}) {
       ipc.get('game:tool')({}, { tool, ...extra });
       for (let i = 0; i < 500; i += 1) await Promise.resolve();
@@ -281,4 +291,76 @@ test('unknown tools, injection-like IDs and logged-out scans cannot cause trades
   const market = loggedOut.sent.filter(x => x.channel === 'game:market').at(-1).value;
   assert.equal(market.available, false);
   assert.equal(market.scanning, false);
+});
+
+test('Eco all uses an explicit OFF switch once and never turns an active economy mode off', async () => {
+  const h = harness();
+  await h.run('economy-on');
+  assert.equal(h.sent.filter(x => x.channel === 'game:stats').at(-1).value.economy, true);
+  assert.deepEqual(h.clicked.map(x => x.key), ['#btn-config', '#cfg-economia']);
+  await h.run('economy-on');
+  assert.deepEqual(h.clicked.map(x => x.key), ['#btn-config', '#cfg-economia'], 'already ON is a no-op');
+  assert.equal(h.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.ok, true);
+  assert.equal(h.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.economy, true);
+  await h.run('economy');
+  assert.equal(h.sent.filter(x => x.channel === 'game:stats').at(-1).value.economy, false, 'individual toggle still restores the normal scene');
+  assert.equal(h.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.economy, false);
+});
+
+test('Eco all prefers visible ON-only shortcuts and ignores shortcuts hidden by ancestors or CSS', async () => {
+  const visible = harness();
+  visible.put('#hunt-eco', '', '', {}, () => visible.htmlClasses.add('modo-economia'));
+  await visible.run('economy-on');
+  assert.deepEqual(visible.clicked.map(x => x.key), ['#hunt-eco']);
+  for (const hiddenBy of ['ancestor', 'css']) {
+    const h = harness();
+    const shortcut = h.put('#hunt-eco', '', '', {}, () => { throw new Error('hidden shortcut was clicked'); });
+    if (hiddenBy === 'ancestor') shortcut.parentElement = h.put('#hidden-hunt', '', 'hidden');
+    else shortcut.style.visibility = 'hidden';
+    await h.run('economy-on');
+    assert.deepEqual(h.clicked.map(x => x.key), ['#btn-config', '#cfg-economia']);
+  }
+});
+
+test('Eco all leaves active queries, game dialogs and disconnected accounts alone', async () => {
+  for (const alreadyOn of [false, true]) {
+    const h = harness();
+    if (alreadyOn) h.htmlClasses.add('modo-economia');
+    h.fire('scan-stones');
+    await h.run('economy-on');
+    const market = h.sent.filter(x => x.channel === 'game:market').at(-1).value;
+    assert.equal(market.scanned, 3, 'scan continues to completion');
+    assert.equal(market.error ?? '', '');
+    assert(!h.clicked.some(x => ['#btn-config', '#cfg-economia', '#eco-sair'].includes(x.key)));
+    assert.equal(h.sent.filter(x => x.channel === 'game:tool-result' && x.value.tool === 'economy-on').at(-1).value.ok, alreadyOn);
+  }
+  const modal = harness();
+  modal.nodes.get('#modal').classes.delete('hidden');
+  await modal.run('economy-on');
+  assert.equal(modal.clicked.length, 0);
+  assert.match(modal.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.error, /Feche o menu/);
+  for (const h of [harness({ loggedIn: false }), harness()]) {
+    h.context.navigator.onLine = false;
+    await h.run('economy-on');
+    assert.equal(h.clicked.length, 0);
+    assert.equal(h.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.ok, false);
+  }
+});
+
+test('Eco all requires a confirmed OFF switch and yields to a real game interaction', async () => {
+  const unknown = harness();
+  unknown.nodes.get('#btn-config').click = () => {
+    const toggle = unknown.put('#cfg-corpo #cfg-economia', '', '', { 'aria-checked': 'true' });
+    toggle.click = () => { throw new Error('unconfirmed toggle must not be clicked'); };
+  };
+  await unknown.run('economy-on');
+  assert.equal(unknown.htmlClasses.has('modo-economia'), false);
+  assert.equal(unknown.sent.filter(x => x.channel === 'game:tool-result').at(-1).value.ok, false);
+  const interrupted = harness();
+  interrupted.nodes.get('#btn-config').click = () => {
+    interrupted.events.get('pointerdown')({ isTrusted: true });
+  };
+  await interrupted.run('economy-on');
+  assert.equal(interrupted.htmlClasses.has('modo-economia'), false);
+  assert(!interrupted.clicked.some(x => x.key === '#cfg-economia'));
 });

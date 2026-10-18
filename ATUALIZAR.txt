@@ -1,10 +1,54 @@
-ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.3
+ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.5
 
 NOVIDADES
 
-A interface do painel agora é azul: fundo, barras, botões, abas e marcadores.
-O tema verde e outras cores antigas são substituídos automaticamente ao abrir.
-Os nomes dos perfis, logins, zoom e preferência da Hunt são mantidos.
+DESEMPENHO
+
+Configurações > Desempenho > Ativar Eco nas contas abertas.
+O botão ativa o Modo Economia oficial nas contas disponíveis e mostra quantas
+confirmaram Eco ativo. O cenário fica simplificado; a caça e as leituras do Meu Farm
+continuam. Cada conta mantém a própria preferência nos dados locais do jogo.
+
+Contas já em Eco permanecem assim. Contas desconectadas, com consulta em andamento
+ou com um modal do jogo aberto são mantidas como estão. Feche o menu ou aguarde
+a consulta terminar e tente novamente nas contas restantes. O painel mostra o aviso.
+Use Eco no cabeçalho de cada conta para voltar ao visual normal individualmente.
+O aplicativo não ativa Eco sozinho ao abrir, trocar de conta ou mudar de layout.
+
+Medições visuais de campo/abates da extensão Hunt podem ficar sem novas amostras
+durante o Eco. Para calibrar essas medições, use a cena normal. Meu Farm continua
+usando o XP e os saldos do HUD, que o jogo mantém atualizados no modo Economia.
+
+O painel também passou a evitar renderizações, medições de posição e comandos
+de redimensionamento repetidos. Atualizações próximas das contas são agrupadas,
+e medições de farm já encerradas não disparam atualizações periódicas inúteis.
+Essas melhorias são automáticas. As quatro sessões continuam abertas e o zoom
+automático 100%/60% permanece funcionando como antes.
+
+No teste sintético de 120 atualizações das quatro contas, com diálogos fechados,
+as leituras repetidas de posição passaram de 480 para 0 e os envios de tamanho
+de 120 para 0. Isso mede operações eliminadas, não uma porcentagem de redução de
+CPU ou RAM no Windows. O ganho real varia conforme o computador e o estado do jogo.
+
+MELHORIAS ANTERIORES INCLUÍDAS
+
+Zoom automático por modo:
+• Total (uma conta focada): 100% na conta exibida.
+• Multi (quadrantes): 60% em todas as contas abertas.
+• Dividido: 60% nos painéis.
+
+A regra vale ao trocar de modo, ampliar um painel e selecionar outra conta em Total
+pelas abas, lateral ou Ctrl+1 a Ctrl+4. Ao sair do foco, as quatro voltam a 60%.
+Abrir o aplicativo aplica o padrão do modo salvo. As sessões não são recarregadas
+ao alternar a visualização ou o zoom.
+
+Você ainda pode ajustar o zoom com − e +. Atualizações normais de estado e o clique
+no modo/conta que já está ativo mantêm esse ajuste. A próxima troca de modo, troca
+da conta em Total ou reabertura do aplicativo aplica o zoom automático novamente.
+Clicar na porcentagem restaura 100% em Total ou 60% nos outros modos.
+
+A interface azul, as contas e a configuração da Hunt são mantidas.
+Esta atualização também inclui as melhorias das versões anteriores:
 
 As quatro contas abertas aparecem em quadrados na lateral esquerda, sempre visíveis,
 e em abas compactas no topo, com nome do personagem quando disponível e estado.
@@ -36,15 +80,15 @@ sem alterar as fórmulas do motor. Veja LEIA-ME.txt e resources\app\extensions\H
 SE VOCÊ BAIXOU A ATUALIZAÇÃO PEQUENA
 
 1. Feche o IdleBoard Isgroi pelo X da janela.
-2. Extraia TODO o arquivo Atualizacao-IdleBoard-1.0.3.zip.
+2. Extraia TODO o arquivo Atualizacao-IdleBoard-1.0.5.zip.
 3. Abra a pasta em que está o seu IdleBoard-Isgroi.exe.
 4. Copie para essa pasta TODO o conteúdo da atualização extraída, incluindo as
    pastas resources e codigo-fonte. Confirme a substituição dos arquivos existentes.
 5. Abra novamente o MESMO IdleBoard-Isgroi.exe.
 
 A atualização pequena não contém um executável novo: ela atualiza os arquivos
-usados pelo executável das versões 1.0.0, 1.0.1 e 1.0.2. Copie para a pasta existente.
-Em Configurações, a versão exibida depois da atualização deve ser 1.0.3.
+usados pelo executável das versões 1.0.0 a 1.0.4. Copie para a pasta existente.
+Em Configurações, a versão exibida depois da atualização deve ser 1.0.5.
 Se aparecer uma versão anterior, confira se resources\app foi substituída na pasta do executável
 que você está abrindo. Não crie uma pasta resources dentro de outra resources.
 
@@ -67,6 +111,8 @@ Os arquivos da atualização não incluem os seus cookies, tokens ou senhas.
 TESTES
 
 Os testes locais de integração e da interface passaram, usando sessões e dados
-simulados. Não foi possível executar o programa Windows neste ambiente nem entrar
+simulados. Foram incluídos cenários de Eco já ativo, controle oculto, conta ocupada,
+falta de conexão, interrupção manual e confirmação assíncrona, além das mudanças
+de layout e geometria. Não foi possível executar o programa Windows neste ambiente nem entrar
 em uma conta real. O funcionamento da Hunt no jogo conectado precisa ser confirmado
 na sua instalação. Se houver falha na extensão, o jogo ainda pode abrir normalmente.

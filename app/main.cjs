@@ -18,6 +18,7 @@ const views = new Map();
 const runtime = Object.create(null);
 const farms = new Map();
 const navigationRequests = new WeakMap();
+const appliedViewGeometry = new WeakMap();
 const toolsState = { market: null, lives: null };
 let window = null;
 let configPath;
@@ -29,6 +30,7 @@ let saveTimer = null;
 let quitting = false;
 let huntLoader;
 let requestedViewFocus = null;
+let stateUpdateTimer = null;
 
 function persist() {
   if (!configPath) return;
@@ -52,7 +54,13 @@ function publicState() {
 }
 
 function emit() {
+  if (stateUpdateTimer !== null) { clearTimeout(stateUpdateTimer); stateUpdateTimer = null; }
   if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send('board:state-update', publicState());
+}
+
+function scheduleStateUpdate() {
+  if (stateUpdateTimer !== null || quitting) return;
+  stateUpdateTimer = setTimeout(() => { stateUpdateTimer = null; emit(); }, 120);
 }
 
 function stopProfileQueries(id, reason) {
@@ -149,7 +157,7 @@ function consumeStats(id, stats) {
     if (!next.valid || (previous.startedAt && next.startedAt !== previous.startedAt)) finishFarm(id, next.reason, previous);
     else r.farm = farmSnapshot(entry, next);
   }
-  emit();
+  scheduleStateUpdate();
 }
 
 function updatePowerBlocker() {
@@ -165,8 +173,13 @@ function applyBounds() {
   for (const [id, view] of views) {
     const bounds = model.cleanBounds(lastBounds[id], size);
     const visible = !overlayVisible && !!bounds && (state.layout !== 'single' || state.focusedId === id);
-    if (bounds) view.setBounds(bounds);
-    view.setVisible(visible);
+    const applied = appliedViewGeometry.get(view) || {};
+    if (bounds && (!applied.bounds || ['x', 'y', 'width', 'height'].some(key => bounds[key] !== applied.bounds[key]))) {
+      view.setBounds(bounds);
+      applied.bounds = bounds;
+    }
+    if (applied.visible !== visible) { view.setVisible(visible); applied.visible = visible; }
+    appliedViewGeometry.set(view, applied);
     if (visible && requestedViewFocus === id && !view.webContents.isDestroyed()) focusTarget = view;
   }
   // In single-account mode, the renderer first needs to report the new slot.
@@ -177,11 +190,28 @@ function applyBounds() {
   }
 }
 
+function applyLayoutZoom() {
+  for (const profile of state.profiles) {
+    if (!state.openIds.includes(profile.id)) continue;
+    const target = model.layoutZoom(state, profile.id);
+    if (profile.zoom === target) continue;
+    profile.zoom = target;
+    const view = views.get(profile.id);
+    if (view && !view.webContents.isDestroyed()) view.webContents.setZoomFactor(target);
+  }
+}
+
+function selectAccount(id, layout = state.layout) {
+  const zoomChanged = state.layout !== layout || (layout === 'single' && state.focusedId !== id);
+  state.focusedId = id;
+  state.layout = layout;
+  if (zoomChanged) applyLayoutZoom();
+  requestedViewFocus = id;
+}
+
 function enterFocus(id = state.focusedId || state.openIds[0]) {
   getView(id);
-  state.focusedId = id;
-  state.layout = state.focusLayout;
-  requestedViewFocus = id;
+  selectAccount(id, state.focusLayout);
 }
 
 function handleKeys(contents) {
@@ -256,6 +286,7 @@ function createGameView(id) {
   view.setBackgroundColor('#0c1423');
   if (typeof view.setBorderRadius === 'function') view.setBorderRadius(8);
   view.setVisible(false);
+  appliedViewGeometry.set(view, { visible: false });
   window.contentView.addChildView(view);
   const contents = view.webContents;
   contents.setAudioMuted(profile.muted);
@@ -335,7 +366,7 @@ function closePanel(id, reason = 'panel_closed') {
   delete lastBounds[id];
   stopProfileQueries(id, 'A consulta foi encerrada porque o painel foi fechado.');
   state.openIds = state.openIds.filter(item => item !== id);
-  if (state.focusedId === id) state.focusedId = state.openIds[0] || null;
+  if (state.focusedId === id) selectAccount(state.openIds[0] || null);
   updatePowerBlocker();
 }
 
@@ -350,8 +381,7 @@ async function performAction(action, payload) {
       const profile = { id: randomUUID(), name, color: model.color(p.color), zoom: 0.6, muted: true, createdAt: Date.now() };
       state.profiles.push(profile);
       state.openIds.push(profile.id);
-      state.focusedId = profile.id;
-      requestedViewFocus = profile.id;
+      selectAccount(profile.id);
       createGameView(profile.id);
       break;
     }
@@ -375,17 +405,19 @@ async function performAction(action, payload) {
       break;
     }
     case 'panel:open': {
-      getProfile(p.id);
-      if (!state.openIds.includes(p.id)) state.openIds.push(p.id);
-      state.focusedId = p.id;
-      requestedViewFocus = p.id;
+      const profile = getProfile(p.id);
+      if (!state.openIds.includes(p.id)) {
+        state.openIds.push(p.id);
+        profile.zoom = 0.6;
+      }
+      selectAccount(p.id);
       createGameView(p.id);
       break;
     }
     case 'panel:close': getProfile(p.id); closePanel(p.id); break;
     case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); break;
     case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); break;
-    case 'panel:focus': getView(p.id); state.focusedId = p.id; requestedViewFocus = p.id; break;
+    case 'panel:focus': getView(p.id); selectAccount(p.id); break;
     case 'focus:enter': enterFocus(p.id); break;
     case 'panel:zoom': {
       const profile = getProfile(p.id);
@@ -402,11 +434,10 @@ async function performAction(action, payload) {
     case 'layout:set': {
       if (!model.LAYOUTS.includes(p.layout)) throw new Error('Layout inválido.');
       if (p.layout !== 'grid' && state.openIds.length === 0) throw new Error('Abra uma conta antes de entrar no foco.');
-      state.layout = p.layout;
       if (p.layout !== 'grid') {
         state.focusLayout = p.layout;
         enterFocus();
-      }
+      } else selectAccount(state.focusedId, 'grid');
       break;
     }
     case 'toolbar:toggle': state.toolbarHidden = !state.toolbarHidden; break;
@@ -423,6 +454,36 @@ async function performAction(action, payload) {
       break;
     }
     case 'window:fullscreen': window.setFullScreen(!window.isFullScreen()); break;
+    case 'game:eco-all': {
+      const eligible = state.openIds.filter(id => {
+        const r = runtime[id], view = views.get(id);
+        return view && !view.webContents.isDestroyed() && model.isGameURL(view.webContents.getURL())
+          && r?.status === 'ready' && r.stats?.loggedIn
+          && ['game_visible', 'fainted'].includes(r.stats.status) && Date.now() - r.stats.at < 40_000;
+      });
+      if (!eligible.length) throw new Error('Entre no jogo e aguarde a conexão de pelo menos uma conta para ativar o Eco.');
+      const pending = eligible.filter(id => runtime[id].stats.economy !== true);
+      if (!pending.length) { message = 'O Eco já está ativo nas contas conectadas.'; break; }
+      let requested = 0, busy = 0;
+      for (const id of pending) {
+        if ((toolsState.market?.profileId === id && toolsState.market.scanning)
+          || (toolsState.lives?.profileId === id && toolsState.lives.loading)) {
+          runtime[id].notice = 'Aguarde a consulta desta conta terminar e tente ativar o Eco novamente.';
+          runtime[id].ecoNotice = runtime[id].notice;
+          busy += 1;
+          continue;
+        }
+        runtime[id].notice = '';
+        runtime[id].ecoNotice = '';
+        views.get(id).webContents.send('game:tool', { tool: 'economy-on' });
+        requested += 1;
+      }
+      message = requested
+        ? `Ativando Eco em ${requested} conta(s). Acompanhe a confirmação nas Configurações.`
+        : 'As contas restantes estão em consulta. Aguarde a conclusão e tente novamente.';
+      if (requested && busy) message += ` ${busy} conta(s) em consulta foram mantidas como estão.`;
+      break;
+    }
     case 'game:tool': {
       const view = getView(p.id);
       const allowedTools = ['items', 'sales', 'team', 'economy', 'lives', 'scan-stones', 'cancel-scan', 'view-stone'];
@@ -458,7 +519,9 @@ async function performAction(action, payload) {
       if (fs.statSync(answer.filePaths[0]).size > 2 * 1024 * 1024) throw new Error('O backup é grande demais. O limite é 2 MB.');
       let raw;
       try { raw = JSON.parse(fs.readFileSync(answer.filePaths[0], 'utf8')); } catch { throw new Error('Não foi possível ler esse arquivo JSON.'); }
+      const previousLayout = state.layout;
       model.importPreferences(state, raw);
+      if (state.layout !== previousLayout) applyLayoutZoom();
       message = 'Preferências e medições importadas. Suas sessões atuais foram preservadas.';
       break;
     }
@@ -538,9 +601,19 @@ function setupIPC() {
     if (raw.ok === false) {
       const error = model.text(raw.error, 240) || 'A ferramenta não está disponível nesta tela do jogo.';
       runtime[id].notice = error;
+      if (raw.tool === 'economy-on') runtime[id].ecoNotice = error;
       if (raw.tool === 'scan-stones' && toolsState.market?.profileId === id) { toolsState.market.scanning = false; toolsState.market.error = error; }
       if (raw.tool === 'lives' && toolsState.lives?.profileId === id) { toolsState.lives.loading = false; toolsState.lives.error = error; }
-    } else runtime[id].notice = '';
+    } else {
+      runtime[id].notice = '';
+      if (raw.tool === 'economy-on') runtime[id].ecoNotice = '';
+      // A forced DOM sample can arrive inside the stats rate limit. The explicit
+      // tool acknowledgement carries the confirmed flag without advancing XP/time.
+      if (raw.ok === true && ['economy', 'economy-on'].includes(raw.tool)
+        && typeof raw.economy === 'boolean' && runtime[id].stats?.loggedIn) {
+        runtime[id].stats = { ...runtime[id].stats, economy: raw.economy };
+      }
+    }
     emit();
   });
 }
@@ -574,6 +647,7 @@ function createWindow() {
   handleKeys(window.webContents);
   window.on('resize', applyBounds);
   window.on('close', () => {
+    if (stateUpdateTimer !== null) { clearTimeout(stateUpdateTimer); stateUpdateTimer = null; }
     for (const id of state.openIds) finishFarm(id, 'panel_closed');
     try { persist(); } catch { notifyStorageFailure(); }
     for (const view of views.values()) {
@@ -602,6 +676,7 @@ else {
       try { fs.copyFileSync(configPath, configPath + '.recovery-' + Date.now()); } catch {}
       dialog.showErrorBox('Preferências não puderam ser lidas', 'Uma cópia do arquivo original foi preservada quando possível. O painel abrirá com preferências novas; as contas no jogo não foram alteradas.');
     }
+    applyLayoutZoom();
     huntLoader = createHuntLoader({ enabled: state.huntEnabled });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'Aplicativo', submenu: [{ role: 'quit', label: 'Sair' }] },
@@ -611,15 +686,19 @@ else {
     setupIPC();
     createWindow();
     setInterval(() => {
+      let changed = false;
       for (const [id, entry] of farms) {
-        if (entry.running && Date.now() - (runtime[id]?.stats?.at || 0) > 45000) finishFarm(id, 'observation_gap');
+        if (entry.running && Date.now() - (runtime[id]?.stats?.at || 0) > 45000) {
+          finishFarm(id, 'observation_gap');
+          changed = true;
+        }
       }
-      if (farms.size) emit();
+      if (changed) emit();
     }, 5000).unref();
   }).catch(() => {
     dialog.showErrorBox('IdleBoard Isgroi', 'Não foi possível iniciar o painel. Extraia a pasta inteira do arquivo ZIP e abra o executável novamente.');
     app.quit();
   });
-  app.on('before-quit', () => { quitting = true; clearTimeout(saveTimer); });
+  app.on('before-quit', () => { quitting = true; clearTimeout(saveTimer); clearTimeout(stateUpdateTimer); stateUpdateTimer = null; });
   app.on('window-all-closed', () => app.quit());
 }

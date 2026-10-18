@@ -55,7 +55,7 @@
     {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
     {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.3', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.5', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -64,9 +64,14 @@
   let stonesProfileId = null;
   let trialSort = {key:'pokemonXpPerHour',direction:-1};
   let boundsFrame = 0;
+  let forceBounds = false;
+  let lastBoundsSignature = null;
+  let geometrySignature = null;
+  let openSlotsSignature = null;
   let activeDialog = null;
   let openingDialog = false;
   let panelStructure = '';
+  const renderSignatures = new Map();
   const pending = new Set();
   const isPreview = Boolean(bridge?.isPreview);
 
@@ -79,10 +84,29 @@
     });
   }
   function colors(root = document) {
-    $$('[data-color]', root).forEach(node => node.style.setProperty('--profile-color', COLORS.some(c=>c.value===node.dataset.color?.toLowerCase()) ? node.dataset.color : COLORS[0].value));
+    const nodes=root.matches?.('[data-color]')?[root,...$$('[data-color]',root)]:$$('[data-color]',root);
+    nodes.forEach(node=>{
+      const value=COLORS.some(c=>c.value===node.dataset.color?.toLowerCase())?node.dataset.color:COLORS[0].value;
+      if(node._profileColor!==value){node.style.setProperty('--profile-color',value);node._profileColor=value;}
+    });
   }
   function setHTML(node, value) {
-    if (node && node._renderedHTML !== value) { node.innerHTML = value; node._renderedHTML = value; }
+    if (node && node._renderedHTML !== value) {
+      node.innerHTML = value; node._renderedHTML = value;
+      if(value.includes('data-color'))colors(node);
+    }
+  }
+  function drawChanged(key, inputs, draw, force=false) {
+    const signature=JSON.stringify(inputs);
+    if(!force&&renderSignatures.get(key)===signature)return;
+    draw();
+    renderSignatures.set(key,signature);
+  }
+  function accountViewInputs() {
+    return state.profiles.map(p=>{
+      const r=runtime(p.id),s=r.stats;
+      return [p,r.status,r.errorMessage,r.notice,s?.loggedIn,s?.nick,s?.status,s?.trainerLevel,s?.economy];
+    });
   }
   function numeric(value, fallback = '—') { return Number.isFinite(Number(value)) && value !== null && value !== undefined && value !== '' ? number.format(Number(value)) : fallback; }
   function signed(value) { return value === null || value === undefined || !Number.isFinite(Number(value)) ? '—' : `${Number(value)>0?'+':''}${number.format(Number(value))}`; }
@@ -99,6 +123,7 @@
   }
   function profile(id) { return state.profiles.find(p => p.id === id); }
   function runtime(id) { return state.runtime?.[id] || {}; }
+  function layoutZoom(id) { return state.layout==='single'&&state.focusedId===id?1:.6; }
   function accountIdentity(p) {
     const r=runtime(p.id),stats=r.stats;
     const nick=stats?.loggedIn&&typeof stats.nick==='string'?stats.nick.trim():'';
@@ -174,38 +199,35 @@
   function render() {
     const toolbar=$('#global-toolbar'),focusedBefore=document.activeElement;
     const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.matches('.panel-toolbar-restore,.panel-focus-exit'));
-    const hideToolbar=Boolean(state.toolbarHidden)&&visibleOpenIds().length>0;
-    toolbar.hidden=hideToolbar;
-    $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
-    document.documentElement.dataset.theme = 'blue';
-    $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
-    $('#preview-banner').hidden = !isPreview;
-    $('#profile-count').textContent = `${state.profiles.length} / 4`;
-    $('#open-count').textContent = String(state.openIds.length);
-    $('#header-add').disabled = state.profiles.length>=4;
-    $('#sidebar-add').disabled = state.profiles.length>=4;
-    $('#rail-add').disabled = state.profiles.length>=4;
-    $('#header-add').title = state.profiles.length>=4 ? 'Você já tem quatro perfis. Edite ou exclua um para criar outro.' : 'Criar um perfil local';
-    $('#sidebar-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis' : 'Adicionar perfil';
-    $('#rail-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis — gerencie as contas no botão acima' : 'Adicionar conta';
-    $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
-    $('#farm-active-dot').hidden = !Object.values(state.runtime).some(r=>r.farm?.running);
-    $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.3' : `Versão ${state.version || '1.0.3'}`;
-    $$('[data-action="layout"]').forEach(button=>{
-      button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout));
-      button.disabled=button.dataset.layout!=='grid'&&!state.openIds.length;
+    const visibleIds=visibleOpenIds(),hideToolbar=Boolean(state.toolbarHidden)&&visibleIds.length>0;
+    const farmRunning=Object.values(state.runtime).some(r=>r.farm?.running),accounts=accountViewInputs();
+    drawChanged('shell',[state.version,state.profiles.map(p=>p.id),state.openIds,state.focusedId,state.layout,hideToolbar,state.keepAwake,farmRunning],()=>{
+      toolbar.hidden=hideToolbar;
+      $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
+      document.documentElement.dataset.theme = 'blue';
+      $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
+      $('#preview-banner').hidden = !isPreview;
+      $('#profile-count').textContent = `${state.profiles.length} / 4`;
+      $('#open-count').textContent = String(state.openIds.length);
+      $('#header-add').disabled = state.profiles.length>=4;
+      $('#sidebar-add').disabled = state.profiles.length>=4;
+      $('#rail-add').disabled = state.profiles.length>=4;
+      $('#header-add').title = state.profiles.length>=4 ? 'Você já tem quatro perfis. Edite ou exclua um para criar outro.' : 'Criar um perfil local';
+      $('#sidebar-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis' : 'Adicionar perfil';
+      $('#rail-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis — gerencie as contas no botão acima' : 'Adicionar conta';
+      $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
+      $('#farm-active-dot').hidden = !farmRunning;
+      $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.5' : `Versão ${state.version || '1.0.5'}`;
+      $$('[data-action="layout"]').forEach(button=>{
+        button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout));
+        button.disabled=button.dataset.layout!=='grid'&&!state.openIds.length;
+      });
+      $('#global-focus-exit').hidden=state.layout==='grid'||!state.openIds.length;
+      $('#keep-awake-toggle').setAttribute('aria-checked',String(Boolean(state.keepAwake)));
     });
-    $('#global-focus-exit').hidden=state.layout==='grid'||!state.openIds.length;
-    $('#keep-awake-toggle').setAttribute('aria-checked',String(Boolean(state.keepAwake)));
-    renderHuntSettings();
-    renderAccountNav();
-    renderProfiles();
-    renderPanels();
-    if ($('#farm-dialog').open) renderFarm();
-    if ($('#lives-dialog')?.open) renderLives();
-    if ($('#stones-dialog')?.open) renderStones();
-    hydrateIcons();
-    colors();
+    drawChanged('navigation',[state.openIds,state.focusedId,state.focusLayout,accounts],renderAccountNav);
+    drawChanged('panels',[state.layout,state.focusedId,state.focusLayout,state.toolbarHidden,state.openIds,accounts],renderPanels);
+    if(activeDialog?.open)renderDialogContents(activeDialog.id);
     if(preserveToolbarFocus&&(!focusedBefore.isConnected||focusedBefore.closest('[hidden]'))){
       const currentFocus=document.activeElement;
       if(currentFocus===focusedBefore||currentFocus===document.body||currentFocus===document.documentElement){
@@ -213,7 +235,28 @@
         target?.focus({preventScroll:true});
       }
     }
-    scheduleBounds();
+    // HP/XP and dialog data do not change the fixed-height shell or native slots.
+    const geometry=JSON.stringify([state.layout,visibleIds,hideToolbar]),openSlots=JSON.stringify(state.openIds);
+    if(geometrySignature!==geometry||openSlotsSignature!==openSlots){
+      const recreated=openSlotsSignature!==openSlots;
+      geometrySignature=geometry;openSlotsSignature=openSlots;
+      scheduleBounds(recreated);
+    }
+  }
+  function renderDialogContents(id, force=false) {
+    const profiles=[state.profiles,state.openIds,state.focusedId];
+    if(id==='profiles-dialog')drawChanged('profiles',[profiles,accountViewInputs()],renderProfiles,force);
+    else if(id==='settings-dialog'){
+      const status=Object.entries(state.runtime).map(([key,r])=>[key,r.hunt?.status,r.status,r.stats?.loggedIn,r.stats?.status,r.stats?.economy,r.ecoNotice]);
+      drawChanged('settings',[profiles,state.huntEnabled,state.system?.huntEnabledAtStartup,status,pending.has('game:eco-all:')],()=>{renderHuntSettings();renderPerformanceSettings();},force);
+    }else if(id==='farm-dialog'){
+      // Keep the complete readings, including HP and farm counters, while this dialog is visible.
+      drawChanged('farm',[profiles,farmProfileId,state.runtime,state.trials,trialSort],renderFarm,force);
+    }else if(id==='lives-dialog'){
+      drawChanged('lives',[profiles,livesProfileId,state.tools?.lives,state.openIds.map(key=>runtime(key).stats?.loggedIn)],renderLives,force);
+    }else if(id==='stones-dialog'){
+      drawChanged('stones',[profiles,stonesProfileId,state.tools?.market,state.openIds.map(key=>runtime(key).stats?.loggedIn)],renderStones,force);
+    }
   }
   function renderAccountNav() {
     const ids=state.openIds.filter(id=>profile(id));
@@ -238,6 +281,7 @@
         $('.account-ordinal',button).textContent=String(ordinal);
         $('.account-name',button).textContent=rail?accountInitials(identity,ordinal):identity.name;
         $('.account-status',button).className=`account-status ${identity.connection.kind}`;
+        colors(button);
       });
     });
   }
@@ -264,6 +308,19 @@
     $('#hunt-load-status').classList.toggle('warning',!isPreview&&errors.length>0);
     setHTML($('#hunt-load-status'),`${icon(!isPreview&&errors.length?'info':loading&&!isPreview?'clock':'info')}<span>${esc(message)}</span>`);
   }
+  function renderPerformanceSettings() {
+    const connected=state.openIds.map(id=>runtime(id)).filter(r=>r.status==='ready'&&r.stats?.loggedIn&&['game_visible','fainted'].includes(r.stats.status));
+    const active=connected.filter(r=>r.stats.economy===true).length,unknown=connected.filter(r=>typeof r.stats.economy!=='boolean').length;
+    const busy=pending.has('game:eco-all:'),button=$('#economy-all');
+    button.disabled=isPreview||busy||!connected.length||active===connected.length;
+    setHTML(button,`${icon(busy?'clock':'leaf')}<span>${busy?'Ativando Eco…':'Ativar Eco nas contas abertas'}</span>`);
+    const message=isPreview?'Disponível no aplicativo Windows, com contas conectadas.':`Eco ativo em ${active} de ${connected.length} contas conectadas.${unknown?` ${unknown} ${unknown===1?'conta sem leitura':'contas sem leitura'} do modo Eco.`:''}`;
+    $('#economy-all-status').textContent=message;
+    const notices=state.openIds.map(id=>({name:profile(id)?.name||'Conta',runtime:runtime(id)})).filter(entry=>entry.runtime.stats?.economy!==true&&typeof entry.runtime.ecoNotice==='string'&&entry.runtime.ecoNotice.trim());
+    const noticeRegion=$('#economy-all-notice');
+    noticeRegion.hidden=notices.length===0;
+    setHTML(noticeRegion,notices.map(entry=>`<p class="setting-note"><span>${esc(entry.name)}: ${esc(entry.runtime.ecoNotice)}</span></p>`).join(''));
+  }
   $('#hunt-enabled').addEventListener('change',async event=>{
     const input=event.currentTarget,wanted=input.checked;
     input.disabled=true;
@@ -286,7 +343,10 @@
     const ids = visibleOpenIds(), workspace = $('#game-workspace');
     const signature = `${state.layout}|${ids.join(',')}|${state.profiles.length>0}`;
     if (!ids.length) {
-      if (panelStructure!==signature) { setHTML(workspace,emptyHTML()); panelStructure=signature; }
+      if (panelStructure!==signature) {
+        $$('.game-slot',workspace).forEach(slot=>resizeObserver.unobserve(slot));
+        setHTML(workspace,emptyHTML()); panelStructure=signature;
+      }
       return;
     }
     let grid = $('.panel-grid',workspace);
@@ -318,24 +378,17 @@
       const restoreToolbar=state.toolbarHidden&&index===0?`<button class="icon-button panel-toolbar-restore" data-action="toolbar-toggle" title="Mostrar barra superior (Ctrl+Shift+B)" aria-label="Mostrar barra superior (Ctrl+Shift+B)" aria-controls="global-toolbar" aria-expanded="false">${icon('chevron-down')}</button>`:'';
       const exitFocus=state.toolbarHidden&&state.layout!=='grid'&&index===0?'<button class="panel-focus-exit" data-action="focus-exit" title="Sair do foco e mostrar todas as contas em Multi">Sair do foco</button>':'';
       setHTML($('.panel-heading',node),`${restoreToolbar}${exitFocus}<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(title)}"><span class="panel-ordinal" aria-hidden="true">${ordinal}</span><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(identity.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${identity.connection.kind==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
-      const zoom=Math.round((p.zoom||.6)*100), economy=r.stats?.economy ?? null;
+      const zoom=Math.round((p.zoom||layoutZoom(id))*100),resetZoom=Math.round(layoutZoom(id)*100), economy=r.stats?.economy ?? null;
       const tool=(name,title,i)=>`<button class="game-tool" data-action="game-tool" data-tool="${name}" data-id="${esc(id)}" title="${title}" aria-label="${title}">${icon(i)}<span class="tool-label">${title}</span></button>`;
-      setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar 60%">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
+      setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar ${resetZoom}% neste modo" aria-label="Zoom ${zoom}%. Restaurar ${resetZoom}% para ${esc(p.name)}">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel em Total, com zoom de 100%" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
       const placeholder = isPreview ? `${icon('game')}<strong>O seu jogo entra aqui.</strong><p>Este é um perfil da prévia. No aplicativo Windows, o PokeIdle abre diretamente nesta área.</p><span class="direct-url">pokeidle.io/app</span>` : r.status==='error' ? `${icon('info')}<strong>Não foi possível abrir o jogo.</strong><p>${esc(r.errorMessage||'Verifique a sua conexão e recarregue o painel.')}</p>` : `<span class="spinner"></span><strong>Abrindo o PokeIdle…</strong><p>Conexão direta com o jogo, usando a sessão deste perfil.</p>`;
       const slot=$('.game-slot',node);
       setHTML(slot,`<div class="game-placeholder">${placeholder}</div>`);
-      const stats=r.stats, farm=r.farm;
-      let footer='';
-      if(stats?.loggedIn) {
-        footer=`<span class="panel-footer-item">${icon('ball')}<strong>${esc(stats.pokemon?.name||'Pokémon não informado')}${stats.pokemon?.level!=null?` · Nv. ${numeric(stats.pokemon.level)}`:''}</strong></span><span class="panel-footer-item optional-stat">${icon('coin')}<strong>${numeric(stats.gold)}</strong></span>`;
-      } else footer=`<span class="connection-label"><i class="status-dot ${isPreview?'':r.status==='error'?'error':r.status==='loading'?'loading':'ready'}"></i>${isPreview?'Prévia · nenhum jogo conectado':'Login direto no jogo'}</span>`;
-      if(farm?.running) footer+=`<button class="panel-running" data-action="farm-open" data-id="${esc(id)}" title="Ver medição em andamento"><i></i>Medindo ${duration(currentElapsed(farm))}</button>`;
-      else footer+=`<span class="panel-footer-spacer"></span><span class="connection-label">${isPreview?'LOCAL':'pokeidle.io'}</span>`;
-      setHTML($('.panel-footer',node),footer);
     });
     panelStructure=signature;
   }
-  function scheduleBounds() {
+  function scheduleBounds(force=false) {
+    forceBounds=forceBounds||force===true;
     if(boundsFrame)return;
     boundsFrame=requestAnimationFrame(()=>{
       boundsFrame=0;
@@ -344,12 +397,15 @@
         const rect=slot.getBoundingClientRect();
         if(rect.width>0&&rect.height>0)bounds[slot.dataset.id]={x:Math.round(rect.x),y:Math.round(rect.y),width:Math.floor(rect.width),height:Math.floor(rect.height)};
       });
-      try { bridge.setBounds(bounds); } catch { /* Resizing can race application shutdown. */ }
+      const signature=JSON.stringify(Object.keys(bounds).sort().map(id=>[id,bounds[id].x,bounds[id].y,bounds[id].width,bounds[id].height]));
+      if(!forceBounds&&signature===lastBoundsSignature)return;
+      forceBounds=false;
+      try { bridge.setBounds(bounds); lastBoundsSignature=signature; } catch { /* Resizing can race application shutdown. */ }
     });
   }
-  const resizeObserver=new ResizeObserver(scheduleBounds);
+  const resizeObserver=new ResizeObserver(()=>scheduleBounds());
   resizeObserver.observe($('#game-workspace'));
-  window.addEventListener('resize',scheduleBounds);
+  window.addEventListener('resize',()=>scheduleBounds());
 
   async function openDialog(id, before) {
     const dialog=$(`#${id}`);
@@ -360,13 +416,11 @@
       await bridge.setOverlay(true);
       if(before)before();
       activeDialog=dialog;
+      renderDialogContents(id,true);
       dialog.append($('#toast-region'));
       dialog.showModal();
       hydrateIcons(dialog);
       if(id==='profile-dialog')setTimeout(()=>$('#profile-name').focus(),0);
-      if(id==='farm-dialog')renderFarm();
-      if(id==='lives-dialog')renderLives();
-      if(id==='stones-dialog')renderStones();
     } catch(error) {
       toast(error?.message||'Não foi possível abrir esta janela.',true);
       if(!activeDialog?.open)await bridge.setOverlay(false);
@@ -551,9 +605,9 @@
       case 'panel-close':await call('panel:close',{id});break;
       case 'panel-reload':await call('panel:reload',{id});break;
       case 'panel-mute':if(p)await call('panel:mute',{id,muted:!p.muted});break;
-      case 'zoom-minus':if(p)await call('panel:zoom',{id,zoom:Math.max(.35,Math.round(((p.zoom||.6)-.1)*100)/100)});break;
-      case 'zoom-plus':if(p)await call('panel:zoom',{id,zoom:Math.min(1.5,Math.round(((p.zoom||.6)+.1)*100)/100)});break;
-      case 'zoom-reset':await call('panel:zoom',{id,zoom:.6});break;
+      case 'zoom-minus':if(p)await call('panel:zoom',{id,zoom:Math.max(.35,Math.round(((p.zoom||layoutZoom(id))-.1)*100)/100)});break;
+      case 'zoom-plus':if(p)await call('panel:zoom',{id,zoom:Math.min(1.5,Math.round(((p.zoom||layoutZoom(id))+.1)*100)/100)});break;
+      case 'zoom-reset':await call('panel:zoom',{id,zoom:layoutZoom(id)});break;
       case 'layout':await call('layout:set',{layout:button.dataset.layout});break;
       case 'focus-exit':await call('layout:set',{layout:'grid'});break;
       case 'open-all':for(const item of state.profiles)if(!state.openIds.includes(item.id))await call('panel:open',{id:item.id});closeDialog();break;
@@ -566,6 +620,13 @@
       case 'farm-open':if(id)farmProfileId=id;await openDialog('farm-dialog');break;
       case 'dialog-close':closeDialog(button.closest('dialog'));break;
       case 'keep-awake':await call('settings:update',{keepAwake:!state.keepAwake});break;
+      case 'economy-all':{
+        const result=call('game:eco-all');
+        renderPerformanceSettings();
+        await result;
+        renderPerformanceSettings();
+        break;
+      }
       case 'data-export':await call('data:export');break;
       case 'data-import':await call('data:import');break;
       case 'data-folder':await call('data:open-folder');break;

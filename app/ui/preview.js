@@ -5,7 +5,7 @@ if (!window.idleBoard) {
   (() => {
     const STORAGE_KEY='idleboard-isgroi-interface-preview-v1';
     const PROFILE_COLORS=['#77aaff','#57bbff','#6d93ff','#91c7ff','#488fe6','#779dd8'];
-    const initial={version:'1.0.3',profiles:[],openIds:[],focusedId:null,layout:'grid',focusLayout:'single',theme:'blue',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
+    const initial={version:'1.0.5',profiles:[],openIds:[],focusedId:null,layout:'grid',focusLayout:'single',theme:'blue',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
     let state={...initial};
     const listeners=new Set();
     try {
@@ -17,6 +17,10 @@ if (!window.idleBoard) {
     state.profiles=state.profiles.map((p,index)=>({...p,color:PROFILE_COLORS.includes(p.color?.toLowerCase())?p.color.toLowerCase():PROFILE_COLORS[index%PROFILE_COLORS.length]}));
     state.huntEnabled=state.huntEnabled!==false;
     state.system={...initial.system,huntEnabledAtStartup:state.huntEnabled};
+    function layoutZoom(id){return state.layout==='single'&&state.focusedId===id?1:.6;}
+    function applyAutomaticZoom(ids=state.openIds){
+      state.profiles.forEach(p=>{if(ids.includes(p.id))p.zoom=layoutZoom(p.id);});
+    }
     function normalize(){
       state.openIds=state.openIds.filter(id=>state.profiles.some(p=>p.id===id));
       if(!state.openIds.includes(state.focusedId))state.focusedId=state.openIds[0]||null;
@@ -24,12 +28,15 @@ if (!window.idleBoard) {
       state.runtime=Object.fromEntries(state.openIds.map(id=>[id,{status:'ready',errorMessage:null,stats:null,farm:null,hunt:{status:'disabled',version:'1.0.3'}}]));
     }
     function snapshot(){return JSON.parse(JSON.stringify(state));}
-    function publish(){
+    function publish(before){
       normalize();
+      if(state.layout!==before.layout||(state.layout==='single'&&state.focusedId!==before.focusedId))applyAutomaticZoom();
+      else applyAutomaticZoom(state.openIds.filter(id=>!before.openIds.includes(id)));
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify({...state,runtime:{},trials:[]}));}catch{/* Storage is optional for a visual preview. */}
       const next=snapshot();listeners.forEach(fn=>fn(next));return next;
     }
     normalize();
+    applyAutomaticZoom();
     window.idleBoard={
       isPreview:true,
       async getState(){return snapshot();},
@@ -38,6 +45,7 @@ if (!window.idleBoard) {
       async setOverlay(){},
       async act(action,payload={}){
         const p=state.profiles.find(item=>item.id===payload.id);
+        const before={layout:state.layout,focusedId:state.focusedId,openIds:[...state.openIds]};
         switch(action){
           case 'profile:add':{
             if(state.profiles.length>=4)return{ok:false,error:'O limite é de quatro perfis.'};
@@ -58,7 +66,7 @@ if (!window.idleBoard) {
           case 'focus:enter':
             if(!state.openIds.includes(payload.id))return{ok:false,error:'Abra uma conta antes de entrar no foco.'};
             state.focusedId=payload.id;state.layout=state.focusLayout;break;
-          case 'panel:zoom':if(p)p.zoom=Math.min(1.5,Math.max(.35,Number(payload.zoom)||.6));break;
+          case 'panel:zoom':if(p)p.zoom=Math.min(1.5,Math.max(.35,Number(payload.zoom)||layoutZoom(p.id)));break;
           case 'panel:mute':if(p)p.muted=Boolean(payload.muted);break;
           case 'layout:set':
             if(!['grid','focus','single'].includes(payload.layout))return{ok:false,error:'Visualização inválida.'};
@@ -78,10 +86,11 @@ if (!window.idleBoard) {
           case 'data:export':case 'data:import':case 'data:open-folder':return{ok:true,message:'Preferências, medições e dados locais são gerenciados no aplicativo Windows.'};
           case 'farm:start':case 'farm:stop':return{ok:false,error:'Medições exigem uma conta conectada no aplicativo Windows. Esta prévia não simula dados de jogo.'};
           case 'game:tool':return{ok:true,message:'Este atalho controla o jogo real no aplicativo Windows.'};
+          case 'game:eco-all':return{ok:true,message:'Ativar Eco nas contas abertas funciona no aplicativo Windows. Esta prévia não simula o modo do jogo.'};
           case 'trial:delete':break;
           default:return{ok:false,error:'Este recurso está disponível no aplicativo Windows.'};
         }
-        return{ok:true,state:publish()};
+        return{ok:true,state:publish(before)};
       }
     };
   })();

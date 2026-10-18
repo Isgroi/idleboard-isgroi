@@ -16,6 +16,8 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
   const appRoot = path.resolve(__dirname, '../app');
   const realRequire = createRequire(path.join(appRoot, 'main.cjs'));
   const handlers = new Map(), sessions = new Map(), createdViews = [];
+  const timeouts = new Map(), intervals = [];
+  let timerId = 0;
   let win;
   class Contents extends EventEmitter {
     constructor(session) { super(); this.session = session; this.mainFrame = { url: '' }; this.sent = []; this.destroyed = false; }
@@ -78,12 +80,12 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
   }
   class NativeView {
     constructor(options) { this.options = options; this.webContents = new Contents(options.webPreferences.session); createdViews.push(this); }
-    setBounds(value) { this.bounds = value; }
-    setVisible(value) { this.visible = value; }
+    setBounds(value) { this.bounds = value; this.boundsUpdates = (this.boundsUpdates || 0) + 1; }
+    setVisible(value) { this.visible = value; this.visibilityUpdates = (this.visibilityUpdates || 0) + 1; }
     setBackgroundColor() {} setBorderRadius() {}
   }
   const app = new EventEmitter();
-  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.3', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
+  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.5', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
   const ipcMain = new EventEmitter();
   ipcMain.handle = (channel, callback) => handlers.set(channel, callback);
   const electron = {
@@ -100,7 +102,9 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     vm.runInNewContext(fs.readFileSync(path.join(appRoot, 'main.cjs'), 'utf8'), {
       require: name => name === 'electron' ? electron : realRequire(name),
       __dirname: appRoot, process, URL, Response, console,
-      setTimeout: () => 1, clearTimeout() {}, setInterval: () => ({ unref() {} }),
+      setTimeout(callback, delay) { const id = ++timerId; timeouts.set(id, { callback, delay }); return id; },
+      clearTimeout(id) { timeouts.delete(id); },
+      setInterval(callback, delay) { const timer = { callback, delay, unref() {} }; intervals.push(timer); return timer; },
     }, { filename: 'main.cjs' });
     await new Promise(setImmediate);
     const ui = () => ({ sender: win.webContents, senderFrame: win.webContents.mainFrame });
@@ -129,10 +133,22 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await new Promise(setImmediate);
     assert(createdViews.every(v => v.webContents.mainFrame.url === 'https://pokeidle.io/app'));
     assert(Object.values(current().runtime).every(r => r.hunt.status === 'loaded'));
+    const assertZooms = expected => {
+      assert.deepEqual(createdViews.map(v => v.webContents.zoom), expected, 'native game zoom matches the layout');
+      assert.deepEqual(Array.from(current().profiles, p => p.zoom), expected, 'the zoom labels receive the same values');
+    };
+    assertZooms([0.6, 0.6, 0.6, 0.6]);
     const [first, second] = current().openIds;
     const bounds = Object.fromEntries(current().openIds.map((id, i) => [id, { x: i % 2 * 640, y: Math.floor(i / 2) * 400 + 40, width: 630, height: 350 }]));
     ipcMain.emit('board:bounds', ui(), bounds);
     assert(createdViews.every(v => v.visible));
+    const geometryCalls = () => createdViews.map(v => [v.boundsUpdates, v.visibilityUpdates]);
+    const initialGeometryCalls = geometryCalls();
+    for (let i = 0; i < 20; i++) ipcMain.emit('board:bounds', ui(), bounds);
+    assert.deepEqual(geometryCalls(), initialGeometryCalls, 'repeated equal bounds do not call native resize/show again');
+    ipcMain.emit('board:bounds', ui(), { ...bounds, [first]: { ...bounds[first], width: 620 } });
+    assert.equal(createdViews[0].boundsUpdates, initialGeometryCalls[0][0] + 1, 'a real size change still reaches the native view');
+    ipcMain.emit('board:bounds', ui(), bounds);
     createdViews[0].webContents.focus();
     assert.equal(current().focusedId, first, 'clicking a game in the grid selects its account tab');
     const profilesBeforeToggle = JSON.stringify(current().profiles);
@@ -163,6 +179,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     assert.equal(current().layout, 'grid', 'clicking a panel title keeps the Multi layout');
     await action('focus:enter', { id: second });
     assert.equal(current().layout, 'single', 'account navigation enters the preferred focus layout');
+    assertZooms([0.6, 1, 0.6, 0.6]);
     assert.equal(createdViews.filter(v => v.visible).length, 1);
     assert.equal(createdViews[1].visible, true);
     // Account switching must wait for the renderer's newly visible slot;
@@ -170,6 +187,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     ipcMain.emit('board:bounds', ui(), { [second]: bounds[second] });
     const focusBeforeSwitch = createdViews[0].webContents.focusCount;
     await action('focus:enter', { id: first });
+    assertZooms([1, 0.6, 0.6, 0.6]);
     assert.equal(createdViews[0].webContents.focusCount, focusBeforeSwitch);
     ipcMain.emit('board:bounds', ui(), { [first]: bounds[first] });
     assert.equal(createdViews[0].webContents.focusCount, focusBeforeSwitch + 1);
@@ -177,8 +195,22 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     assert.equal(current().openIds.length, 4);
     assert.equal(createdViews.length, 4);
     assert.deepEqual(createdViews.map(v => v.webContents.loads), loadsBeforeSettings);
+    // Manual adjustments last until a real mode/account change; ordinary
+    // state updates, selecting the same tab and page loads do not undo them.
+    await action('panel:zoom', { id: first, zoom: 0.9 });
+    await action('focus:enter', { id: first });
+    await action('layout:set', { layout: 'single' });
+    await action('toolbar:toggle');
+    await action('toolbar:toggle');
+    createdViews[0].webContents.emit('did-finish-load');
+    assertZooms([0.9, 0.6, 0.6, 0.6]);
+    createdViews[0].webContents.emit('before-input-event', { preventDefault() {} }, { type: 'keyDown', key: '2', control: true });
+    assert.equal(current().focusedId, second);
+    assert.equal(current().layout, 'single');
+    assertZooms([0.6, 1, 0.6, 0.6]);
     // Shell dialogs keep focus until closed, even when a tab is selected.
     await action('layout:set', { layout: 'grid' });
+    assertZooms([0.6, 0.6, 0.6, 0.6]);
     ipcMain.emit('board:bounds', ui(), bounds);
     await handlers.get('board:overlay')(ui(), true);
     const focusBeforeDialog = createdViews[1].webContents.focusCount;
@@ -189,6 +221,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await handlers.get('board:overlay')(ui(), false);
     assert.equal(createdViews[1].webContents.focusCount, focusBeforeDialog + 1);
     await action('layout:set', { layout: 'focus' });
+    assertZooms([0.6, 0.6, 0.6, 0.6]);
     assert.equal(current().focusLayout, 'focus');
     createdViews[0].webContents.emit('focus');
     assert.equal(current().focusedId, second, 'clicks in small games do not move the large focus panel');
@@ -211,18 +244,56 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await action('layout:set', { layout: 'grid' });
     const guest = v => ({ sender: v.webContents, senderFrame: v.webContents.mainFrame });
     assert.equal((await handlers.get('board:action')(guest(createdViews[0]), 'profile:add', { name: 'Untrusted' })).ok, false);
+    assert.equal((await action('game:eco-all')).ok, false, 'unconnected accounts cannot receive Eco commands');
     const stats = { schemaVersion: 1, loggedIn: true, status: 'game_visible', nick: 'Fixture', trainerLevel: 1, trainerXp: { current: 5, target: 100 }, pokemon: { id: '1', name: 'Fixture', level: 1, xpCurrent: 5, xpTarget: 100 }, hunt: 'Fixture' };
-    for (const view of createdViews) ipcMain.emit('game:stats', guest(view), stats);
+    const stateMessages = () => win.webContents.sent.filter(item => item.channel === 'board:state-update').length;
+    const beforeStats = stateMessages();
+    for (const [index, view] of createdViews.entries()) ipcMain.emit('game:stats', guest(view), { ...stats, economy: index === 0 });
+    assert.equal(stateMessages(), beforeStats, 'nearby account snapshots are batched before renderer IPC');
+    const pendingUpdates = [...timeouts].filter(([, timer]) => timer.delay === 120);
+    assert.equal(pendingUpdates.length, 1);
+    assert(Object.values(current().runtime).every(r => r.stats.nick === 'Fixture'));
+    const [updateId, updateTimer] = pendingUpdates[0];
+    timeouts.delete(updateId); updateTimer.callback();
+    assert.equal(stateMessages(), beforeStats + 1, 'four account snapshots require one renderer update');
+    const economyRequests = () => createdViews.map(v => v.webContents.sent.filter(x => x.channel === 'game:tool' && x.payload.tool === 'economy-on').length);
+    assert.equal((await action('game:eco-all')).ok, true);
+    assert.deepEqual(economyRequests(), [0, 1, 1, 1], 'only connected accounts without confirmed Eco receive ON-only commands');
+    assert.deepEqual(createdViews.map(v => v.webContents.loads), loadsBeforeSettings);
+    assert.equal(sessions.size, 4);
+    await action('game:tool', { id: second, tool: 'scan-stones' });
+    await action('game:eco-all');
+    assert.deepEqual(economyRequests(), [0, 1, 2, 2], 'the account running a market scan is left alone');
+    assert.equal(current().tools.market.scanning, true);
+    assert.match(current().runtime[second].ecoNotice, /Aguarde a consulta/);
+    const thirdBeforeClose = current().openIds[2];
+    ipcMain.emit('game:tool-result', guest(createdViews[2]), { tool: 'economy-on', ok: false, error: 'Feche o menu do jogo.' });
+    assert.equal(current().runtime[thirdBeforeClose].ecoNotice, 'Feche o menu do jogo.');
+    ipcMain.emit('game:tool-result', guest(createdViews[2]), { tool: 'economy-on', ok: true, economy: true });
+    assert.equal(current().runtime[thirdBeforeClose].stats.economy, true, 'tool confirmation updates Eco immediately even inside the stats rate limit');
+    assert.equal(current().runtime[thirdBeforeClose].ecoNotice, '');
+    ipcMain.emit('game:tool-result', guest(createdViews[2]), { tool: 'economy', ok: true, economy: false });
+    assert.equal(current().runtime[thirdBeforeClose].stats.economy, false, 'individual toggle also confirms the resulting state');
+    await action('farm:start', { id: first });
+    await action('farm:stop', { id: first });
+    const afterStoppedFarm = stateMessages();
+    intervals.find(timer => timer.delay === 5000).callback();
+    assert.equal(stateMessages(), afterStoppedFarm, 'a finished measurement does not trigger endless idle redraws');
     await action('game:tool', { id: first, tool: 'scan-stones' });
     assert.equal(current().tools.market.scanning, true);
     createdViews[0].webContents.emit('did-start-navigation', {}, 'https://pokeidle.io/app', false, true);
     assert.equal(current().tools.market.scanning, false);
     assert(current().tools.market.error);
+    await action('layout:set', { layout: 'single' });
+    await action('panel:focus', { id: second });
+    assertZooms([0.6, 1, 0.6, 0.6]);
     await action('game:tool', { id: second, tool: 'lives' });
     assert.equal(current().tools.lives.loading, true);
     await action('panel:close', { id: second });
     assert.equal(current().tools.lives.loading, false);
     assert.equal(createdViews[1].webContents.destroyed, true);
+    assert.equal(current().focusedId, first);
+    assert.equal(createdViews[0].webContents.zoom, 1, 'closing the focused account gives its replacement 100%');
     assert.equal((await action('focus:enter', { id: second })).ok, false, 'focusing a closed account does not reopen its session');
     assert.equal(current().openIds.includes(second), false);
     const focusAfterClose = current().focusedId;
@@ -233,6 +304,9 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     createdViews[2].webContents.emit('render-process-gone');
     assert.equal(current().tools.lives.loading, false);
     assert.equal(current().runtime[third].status, 'error');
+    const beforeUnavailableEco = economyRequests();
+    await action('game:eco-all');
+    assert.deepEqual(economyRequests(), beforeUnavailableEco.map((count, index) => count + (index === 3 ? 1 : 0)), 'loading, closed and crashed accounts are skipped');
     await action('profile:delete', { id: first });
     assert.equal([...sessions.values()].filter(s => s.cleared).length, 1);
     assert.equal(current().profiles.length, 3);
@@ -242,11 +316,13 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     const pendingId = current().focusedId;
     const cancelled = createdViews.at(-1);
     const pendingSession = cancelled.webContents.session;
+    assert.equal(cancelled.webContents.zoom, 1, 'a new account opened in Total starts at 100%');
     await action('panel:close', { id: pendingId });
     await action('panel:open', { id: pendingId });
     const reopened = createdViews.at(-1);
     assert.notEqual(cancelled, reopened);
     assert.equal(reopened.webContents.session, pendingSession);
+    assert.equal(reopened.webContents.zoom, 1, 'reopening an account in Total restores the layout zoom');
     assert.equal(pendingSession.extensionLoadCalls, 1);
     pendingSession.finishExtension(false);
     await new Promise(setImmediate);
