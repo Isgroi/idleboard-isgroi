@@ -34,7 +34,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     setZoomFactor(value) { this.zoom = value; }
     send(channel, payload) { this.sent.push({ channel, payload }); }
     close() { this.destroyed = true; }
-    focus() {}
+    focus() { this.focusCount = (this.focusCount || 0) + 1; this.emit('focus'); }
     reload() { return this.loadURL(this.mainFrame.url); }
   }
   function makeSession() {
@@ -83,7 +83,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     setBackgroundColor() {} setBorderRadius() {}
   }
   const app = new EventEmitter();
-  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.1', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
+  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.3', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
   const ipcMain = new EventEmitter();
   ipcMain.handle = (channel, callback) => handlers.set(channel, callback);
   const electron = {
@@ -106,6 +106,12 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     const ui = () => ({ sender: win.webContents, senderFrame: win.webContents.mainFrame });
     const action = (name, payload) => handlers.get('board:action')(ui(), name, payload);
     const current = () => handlers.get('board:state')(ui());
+    assert.equal(current().theme, 'blue');
+    assert.equal(current().focusLayout, 'single');
+    assert.equal((await action('focus:enter')).ok, false);
+    assert.equal((await action('layout:set', { layout: 'focus' })).ok, false);
+    assert.equal(current().layout, 'grid');
+    assert.equal(createdViews.length, 0);
     for (let i = 1; i <= 4; i++) assert.equal((await action('profile:add', { name: 'Conta ' + i })).ok, true);
     assert.equal(sessions.size, 4);
     assert.equal(createdViews.length, 4);
@@ -127,6 +133,8 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     const bounds = Object.fromEntries(current().openIds.map((id, i) => [id, { x: i % 2 * 640, y: Math.floor(i / 2) * 400 + 40, width: 630, height: 350 }]));
     ipcMain.emit('board:bounds', ui(), bounds);
     assert(createdViews.every(v => v.visible));
+    createdViews[0].webContents.focus();
+    assert.equal(current().focusedId, first, 'clicking a game in the grid selects its account tab');
     const profilesBeforeToggle = JSON.stringify(current().profiles);
     const nativeContentsBeforeToggle = createdViews.map(v => v.webContents);
     await action('toolbar:toggle');
@@ -151,9 +159,56 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await handlers.get('board:overlay')(ui(), false);
     assert(createdViews.every(v => v.visible));
     await action('panel:focus', { id: second });
-    await action('layout:set', { layout: 'single' });
+    assert(createdViews[1].webContents.focusCount > 0, 'selecting an account transfers keyboard focus');
+    assert.equal(current().layout, 'grid', 'clicking a panel title keeps the Multi layout');
+    await action('focus:enter', { id: second });
+    assert.equal(current().layout, 'single', 'account navigation enters the preferred focus layout');
     assert.equal(createdViews.filter(v => v.visible).length, 1);
     assert.equal(createdViews[1].visible, true);
+    // Account switching must wait for the renderer's newly visible slot;
+    // the other three live sessions and their contents are kept intact.
+    ipcMain.emit('board:bounds', ui(), { [second]: bounds[second] });
+    const focusBeforeSwitch = createdViews[0].webContents.focusCount;
+    await action('focus:enter', { id: first });
+    assert.equal(createdViews[0].webContents.focusCount, focusBeforeSwitch);
+    ipcMain.emit('board:bounds', ui(), { [first]: bounds[first] });
+    assert.equal(createdViews[0].webContents.focusCount, focusBeforeSwitch + 1);
+    assert.equal(createdViews.filter(v => v.visible).length, 1);
+    assert.equal(current().openIds.length, 4);
+    assert.equal(createdViews.length, 4);
+    assert.deepEqual(createdViews.map(v => v.webContents.loads), loadsBeforeSettings);
+    // Shell dialogs keep focus until closed, even when a tab is selected.
+    await action('layout:set', { layout: 'grid' });
+    ipcMain.emit('board:bounds', ui(), bounds);
+    await handlers.get('board:overlay')(ui(), true);
+    const focusBeforeDialog = createdViews[1].webContents.focusCount;
+    await action('panel:focus', { id: second });
+    createdViews[0].webContents.emit('focus');
+    assert.equal(current().focusedId, second);
+    assert.equal(createdViews[1].webContents.focusCount, focusBeforeDialog);
+    await handlers.get('board:overlay')(ui(), false);
+    assert.equal(createdViews[1].webContents.focusCount, focusBeforeDialog + 1);
+    await action('layout:set', { layout: 'focus' });
+    assert.equal(current().focusLayout, 'focus');
+    createdViews[0].webContents.emit('focus');
+    assert.equal(current().focusedId, second, 'clicks in small games do not move the large focus panel');
+    await action('layout:set', { layout: 'grid' });
+    assert.equal(current().focusLayout, 'focus', 'leaving focus keeps the preferred divided mode');
+    await action('focus:enter', { id: first });
+    assert.equal(current().layout, 'focus', 'account tabs reopen the last focus layout');
+    assert.equal(current().focusedId, first);
+    await action('layout:set', { layout: 'grid' });
+    prevented = false;
+    createdViews[0].webContents.emit('before-input-event', { preventDefault() { prevented = true; } }, { type: 'keyDown', key: '2', control: true });
+    assert.equal(prevented, true);
+    assert.equal(current().focusedId, second);
+    assert.equal(current().layout, 'focus', 'Ctrl+2 enters the preferred focus mode');
+    assert.deepEqual(createdViews.map(v => v.webContents.loads), loadsBeforeSettings);
+    assert.deepEqual(createdViews.map(v => v.webContents), nativeContentsBeforeToggle);
+    assert.equal(JSON.stringify(current().profiles), profilesBeforeToggle);
+    assert.equal(sessions.size, 4);
+    assert([...sessions.values()].every(s => !s.cleared));
+    await action('layout:set', { layout: 'grid' });
     const guest = v => ({ sender: v.webContents, senderFrame: v.webContents.mainFrame });
     assert.equal((await handlers.get('board:action')(guest(createdViews[0]), 'profile:add', { name: 'Untrusted' })).ok, false);
     const stats = { schemaVersion: 1, loggedIn: true, status: 'game_visible', nick: 'Fixture', trainerLevel: 1, trainerXp: { current: 5, target: 100 }, pokemon: { id: '1', name: 'Fixture', level: 1, xpCurrent: 5, xpTarget: 100 }, hunt: 'Fixture' };
@@ -168,6 +223,11 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     await action('panel:close', { id: second });
     assert.equal(current().tools.lives.loading, false);
     assert.equal(createdViews[1].webContents.destroyed, true);
+    assert.equal((await action('focus:enter', { id: second })).ok, false, 'focusing a closed account does not reopen its session');
+    assert.equal(current().openIds.includes(second), false);
+    const focusAfterClose = current().focusedId;
+    createdViews[1].webContents.emit('focus');
+    assert.equal(current().focusedId, focusAfterClose);
     const third = current().openIds[1];
     await action('game:tool', { id: third, tool: 'lives' });
     createdViews[2].webContents.emit('render-process-gone');

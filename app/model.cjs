@@ -5,8 +5,10 @@ const { randomUUID } = require('node:crypto');
 const GAME_URL = 'https://pokeidle.io/app';
 const MAX_PROFILES = 4;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const THEMES = ['forest', 'ocean', 'violet'];
+const THEMES = ['blue'];
+const PROFILE_COLORS = ['#77aaff', '#57bbff', '#6d93ff', '#91c7ff', '#488fe6', '#779dd8'];
 const LAYOUTS = ['grid', 'focus', 'single'];
+const FOCUS_LAYOUTS = ['single', 'focus'];
 
 function text(value, max = 64) {
   return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '';
@@ -16,7 +18,10 @@ function number(value, fallback = null, max = 1e15) {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? value : fallback;
 }
 
-function color(value) { return /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#69dfb3'; }
+function color(value) {
+  const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+  return PROFILE_COLORS.includes(normalized) ? normalized : PROFILE_COLORS[0];
+}
 function zoom(value) { return typeof value === 'number' && Number.isFinite(value) ? Math.min(1.5, Math.max(0.35, Math.round(value * 100) / 100)) : 0.6; }
 function partitionFor(id) {
   if (!UUID.test(id)) throw new Error('Identificador de conta inválido.');
@@ -24,7 +29,7 @@ function partitionFor(id) {
 }
 
 function initialState() {
-  return { schemaVersion: 1, profiles: [], openIds: [], focusedId: null, layout: 'grid', theme: 'forest', keepAwake: false, sidebarCollapsed: false, toolbarHidden: false, huntEnabled: true, trials: [] };
+  return { schemaVersion: 1, profiles: [], openIds: [], focusedId: null, layout: 'grid', focusLayout: 'single', theme: 'blue', keepAwake: false, sidebarCollapsed: false, toolbarHidden: false, huntEnabled: true, trials: [] };
 }
 
 function cleanTrial(raw) {
@@ -55,12 +60,15 @@ function restoreState(raw) {
   for (const p of Array.isArray(raw.profiles) ? raw.profiles : []) {
     if (!p || !UUID.test(p.id) || ids.has(p.id) || s.profiles.length === MAX_PROFILES) continue;
     ids.add(p.id);
-    s.profiles.push({ id: p.id, name: text(p.name, 32) || `Conta ${s.profiles.length + 1}`, color: color(p.color), zoom: zoom(p.zoom), muted: p.muted !== false, createdAt: number(p.createdAt, Date.now()) });
+    const savedColor = typeof p.color === 'string' ? p.color.toLowerCase() : '';
+    const profileColor = PROFILE_COLORS.includes(savedColor) ? savedColor : PROFILE_COLORS[s.profiles.length % PROFILE_COLORS.length];
+    s.profiles.push({ id: p.id, name: text(p.name, 32) || `Conta ${s.profiles.length + 1}`, color: profileColor, zoom: zoom(p.zoom), muted: p.muted !== false, createdAt: number(p.createdAt, Date.now()) });
   }
   s.openIds = [...new Set(Array.isArray(raw.openIds) ? raw.openIds : [])].filter(id => ids.has(id)).slice(0, MAX_PROFILES);
   s.focusedId = s.openIds.includes(raw.focusedId) ? raw.focusedId : s.openIds[0] || null;
   if (THEMES.includes(raw.theme)) s.theme = raw.theme;
   if (LAYOUTS.includes(raw.layout)) s.layout = raw.layout;
+  s.focusLayout = FOCUS_LAYOUTS.includes(raw.focusLayout) ? raw.focusLayout : raw.layout === 'focus' ? 'focus' : 'single';
   s.keepAwake = raw.keepAwake === true;
   s.sidebarCollapsed = raw.sidebarCollapsed === true;
   s.toolbarHidden = raw.toolbarHidden === true;
@@ -151,7 +159,7 @@ function sanitizeLives(raw, profileId, now = Date.now()) {
 }
 
 function exportPreferences(state) {
-  return { app: 'IdleBoard Isgroi', schemaVersion: 1, exportedAt: new Date().toISOString(), settings: { theme: state.theme, layout: state.layout, sidebarCollapsed: state.sidebarCollapsed, toolbarHidden: state.toolbarHidden === true, huntEnabled: state.huntEnabled !== false }, trials: state.trials.map(cleanTrial).filter(Boolean) };
+  return { app: 'IdleBoard Isgroi', schemaVersion: 1, exportedAt: new Date().toISOString(), settings: { theme: state.theme, layout: state.layout, focusLayout: state.focusLayout, sidebarCollapsed: state.sidebarCollapsed, toolbarHidden: state.toolbarHidden === true, huntEnabled: state.huntEnabled !== false }, trials: state.trials.map(cleanTrial).filter(Boolean) };
 }
 
 function importPreferences(state, raw) {
@@ -159,6 +167,8 @@ function importPreferences(state, raw) {
   const p = raw.settings || {};
   if (THEMES.includes(p.theme)) state.theme = p.theme;
   if (LAYOUTS.includes(p.layout)) state.layout = p.layout;
+  if (FOCUS_LAYOUTS.includes(p.focusLayout)) state.focusLayout = p.focusLayout;
+  else if (FOCUS_LAYOUTS.includes(p.layout)) state.focusLayout = p.layout;
   if (typeof p.sidebarCollapsed === 'boolean') state.sidebarCollapsed = p.sidebarCollapsed;
   if (typeof p.toolbarHidden === 'boolean') state.toolbarHidden = p.toolbarHidden;
   if (typeof p.huntEnabled === 'boolean') state.huntEnabled = p.huntEnabled;
@@ -169,4 +179,4 @@ function importPreferences(state, raw) {
   return state;
 }
 
-module.exports = { GAME_URL, MAX_PROFILES, UUID, THEMES, LAYOUTS, text, number, color, zoom, partitionFor, initialState, restoreState, sanitizeStats, isGameURL, allowedNavigation, cleanBounds, cleanTrial, exportPreferences, importPreferences, liveURL, sanitizeMarket, sanitizeLives };
+module.exports = { GAME_URL, MAX_PROFILES, UUID, THEMES, PROFILE_COLORS, LAYOUTS, FOCUS_LAYOUTS, text, number, color, zoom, partitionFor, initialState, restoreState, sanitizeStats, isGameURL, allowedNavigation, cleanBounds, cleanTrial, exportPreferences, importPreferences, liveURL, sanitizeMarket, sanitizeLives };

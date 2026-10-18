@@ -52,10 +52,10 @@
   const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
   const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
   const COLORS = [
-    {value:'#b7e793',name:'Verde'}, {value:'#91d9ec',name:'Azul'}, {value:'#ccb0f2',name:'Violeta'},
-    {value:'#f0bc8a',name:'Laranja'}, {value:'#eea4be',name:'Rosa'}, {value:'#e4d58e',name:'Amarelo'}
+    {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
+    {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.1', profiles:[], openIds:[], focusedId:null, layout:'grid', theme:'forest', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.3', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -79,7 +79,7 @@
     });
   }
   function colors(root = document) {
-    $$('[data-color]', root).forEach(node => node.style.setProperty('--profile-color', /^#[\da-f]{6}$/i.test(node.dataset.color || '') ? node.dataset.color : COLORS[0].value));
+    $$('[data-color]', root).forEach(node => node.style.setProperty('--profile-color', COLORS.some(c=>c.value===node.dataset.color?.toLowerCase()) ? node.dataset.color : COLORS[0].value));
   }
   function setHTML(node, value) {
     if (node && node._renderedHTML !== value) { node.innerHTML = value; node._renderedHTML = value; }
@@ -99,6 +99,36 @@
   }
   function profile(id) { return state.profiles.find(p => p.id === id); }
   function runtime(id) { return state.runtime?.[id] || {}; }
+  function accountIdentity(p) {
+    const r=runtime(p.id),stats=r.stats;
+    const nick=stats?.loggedIn&&typeof stats.nick==='string'?stats.nick.trim():'';
+    let connection={kind:'login',text:'Aguardando login'};
+    if(isPreview)connection={kind:'preview',text:'Prévia — nenhum jogo conectado'};
+    else if(r.status==='error')connection={kind:'error',text:'Falha na conexão'};
+    else if(r.status==='loading')connection={kind:'loading',text:'Carregando o jogo'};
+    else {
+      const known={
+        offline:{kind:'offline',text:'Offline'},
+        reconnecting:{kind:'reconnecting',text:'Reconectando'},
+        session_elsewhere:{kind:'attention',text:'Sessão aberta em outro lugar'},
+        account_alert:{kind:'attention',text:'Atenção à conta'},
+        layout_unavailable:{kind:'unknown',text:'Estado do jogo indisponível'},
+        login:{kind:'login',text:'Aguardando login'}
+      };
+      if(known[stats?.status])connection=known[stats.status];
+      else if(stats?.loggedIn)connection=stats.status==='fainted'?{kind:'attention',text:'Pokémon desmaiado'}:{kind:'active',text:'Em jogo'};
+    }
+    return {nick,name:nick||p.name,connection};
+  }
+  function accountTooltip(p,ordinal,identity=accountIdentity(p)) {
+    return `Conta ${ordinal} · Perfil: ${p.name}\nJogador: ${identity.nick||'não identificado'}\nEstado: ${identity.connection.text}\nCtrl+${ordinal} · Abrir foco ${state.focusLayout==='focus'?'dividido':'total'}`;
+  }
+  function accountInitials(identity,ordinal) {
+    if(!identity.nick)return `C${ordinal}`;
+    const words=identity.nick.split(/\s+/u);
+    const initials=words.length>1?words.slice(0,2).map(word=>Array.from(word)[0]).join(''):Array.from(identity.nick).slice(0,2).join('');
+    return Array.from(initials.toLocaleUpperCase('pt-BR')).slice(0,2).join('');
+  }
   function visibleOpenIds() {
     const ids = state.openIds.filter(id => profile(id));
     if (state.layout === 'single') return ids.includes(state.focusedId) ? [state.focusedId] : ids.slice(0,1);
@@ -143,26 +173,32 @@
   }
   function render() {
     const toolbar=$('#global-toolbar'),focusedBefore=document.activeElement;
-    const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.classList.contains('panel-toolbar-restore'));
+    const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.matches('.panel-toolbar-restore,.panel-focus-exit'));
     const hideToolbar=Boolean(state.toolbarHidden)&&visibleOpenIds().length>0;
     toolbar.hidden=hideToolbar;
     $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
-    document.documentElement.dataset.theme = ['forest','ocean','violet'].includes(state.theme) ? state.theme : 'forest';
+    document.documentElement.dataset.theme = 'blue';
     $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
     $('#preview-banner').hidden = !isPreview;
     $('#profile-count').textContent = `${state.profiles.length} / 4`;
     $('#open-count').textContent = String(state.openIds.length);
     $('#header-add').disabled = state.profiles.length>=4;
     $('#sidebar-add').disabled = state.profiles.length>=4;
+    $('#rail-add').disabled = state.profiles.length>=4;
     $('#header-add').title = state.profiles.length>=4 ? 'Você já tem quatro perfis. Edite ou exclua um para criar outro.' : 'Criar um perfil local';
     $('#sidebar-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis' : 'Adicionar perfil';
+    $('#rail-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis — gerencie as contas no botão acima' : 'Adicionar conta';
     $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
     $('#farm-active-dot').hidden = !Object.values(state.runtime).some(r=>r.farm?.running);
-    $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.1' : `Versão ${state.version || '1.0.1'}`;
-    $$('[data-action="layout"]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout)));
-    $$('[data-action="theme"]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeValue===state.theme)));
+    $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.3' : `Versão ${state.version || '1.0.3'}`;
+    $$('[data-action="layout"]').forEach(button=>{
+      button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout));
+      button.disabled=button.dataset.layout!=='grid'&&!state.openIds.length;
+    });
+    $('#global-focus-exit').hidden=state.layout==='grid'||!state.openIds.length;
     $('#keep-awake-toggle').setAttribute('aria-checked',String(Boolean(state.keepAwake)));
     renderHuntSettings();
+    renderAccountNav();
     renderProfiles();
     renderPanels();
     if ($('#farm-dialog').open) renderFarm();
@@ -173,11 +209,37 @@
     if(preserveToolbarFocus&&(!focusedBefore.isConnected||focusedBefore.closest('[hidden]'))){
       const currentFocus=document.activeElement;
       if(currentFocus===focusedBefore||currentFocus===document.body||currentFocus===document.documentElement){
-        const target=hideToolbar?$('.panel-toolbar-restore'):$('#toolbar-toggle');
+        const target=focusedBefore.matches('.panel-focus-exit,#global-focus-exit')?$('#rail-multi'):hideToolbar?$('.panel-toolbar-restore'):$('#toolbar-toggle');
         target?.focus({preventScroll:true});
       }
     }
     scheduleBounds();
+  }
+  function renderAccountNav() {
+    const ids=state.openIds.filter(id=>profile(id));
+    $('#open-account-nav').hidden=ids.length===0;
+    [{nav:$('#open-account-nav'),rail:false},{nav:$('#rail-account-nav'),rail:true}].forEach(({nav,rail})=>{
+      const className=rail?'rail-account-button':'open-account-button';
+      $$(`.${className}`,nav).forEach(button=>{if(!ids.includes(button.dataset.id))button.remove();});
+      ids.forEach((id,index)=>{
+        const p=profile(id),identity=accountIdentity(p),ordinal=state.openIds.indexOf(id)+1;
+        let button=$$(`.${className}`,nav).find(node=>node.dataset.id===id);
+        if(!button){
+          button=document.createElement('button');
+          button.type='button';button.className=className;button.dataset.action='account-focus';button.dataset.id=id;
+          button.innerHTML='<span class="account-ordinal" aria-hidden="true"></span><i class="account-status" aria-hidden="true"></i><span class="account-name"></span>';
+          nav.append(button);
+        }
+        if(nav.children[index]!==button)nav.insertBefore(button,nav.children[index]||null);
+        button.dataset.color=p.color;
+        button.setAttribute('aria-pressed',String(state.focusedId===id));
+        button.setAttribute('aria-label',`Conta ${ordinal}: ${identity.name}. ${identity.connection.text}. Abrir foco ${state.focusLayout==='focus'?'dividido':'total'}.`);
+        button.title=accountTooltip(p,ordinal,identity)+'\nClique para abrir o foco; as outras sessões continuam abertas.';
+        $('.account-ordinal',button).textContent=String(ordinal);
+        $('.account-name',button).textContent=rail?accountInitials(identity,ordinal):identity.name;
+        $('.account-status',button).className=`account-status ${identity.connection.kind}`;
+      });
+    });
   }
   function renderHuntSettings() {
     const enabled=state.huntEnabled!==false,startup=state.system?.huntEnabledAtStartup;
@@ -249,10 +311,13 @@
       }
       if(grid.children[index]!==node) grid.insertBefore(node,grid.children[index]||null);
       node.classList.toggle('is-focused',state.focusedId===id);
-      node.setAttribute('aria-label',`Painel ${p.name}`);
-      const status=isPreview?'Prévia da interface':r.status==='error'?'Falha na conexão':r.status==='loading'?'Carregando…':r.stats?.loggedIn?`${label(r.stats.nick,p.name)}${r.stats.trainerLevel!=null?` · Nível ${numeric(r.stats.trainerLevel)}`:''}`:'Aguardando login';
+      const identity=accountIdentity(p),ordinal=state.openIds.indexOf(id)+1;
+      node.setAttribute('aria-label',`Painel ${ordinal}: ${identity.name} · perfil ${p.name}`);
+      const status=identity.connection.text+(identity.connection.kind==='active'&&r.stats?.trainerLevel!=null?` · Nv. ${numeric(r.stats.trainerLevel)}`:'');
+      const title=accountTooltip(p,ordinal,identity)+(r.notice?`\n${r.notice}`:'');
       const restoreToolbar=state.toolbarHidden&&index===0?`<button class="icon-button panel-toolbar-restore" data-action="toolbar-toggle" title="Mostrar barra superior (Ctrl+Shift+B)" aria-label="Mostrar barra superior (Ctrl+Shift+B)" aria-controls="global-toolbar" aria-expanded="false">${icon('chevron-down')}</button>`:'';
-      setHTML($('.panel-heading',node),`${restoreToolbar}<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(r.notice||`Selecionar ${p.name}`)}"><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(p.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${r.status==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
+      const exitFocus=state.toolbarHidden&&state.layout!=='grid'&&index===0?'<button class="panel-focus-exit" data-action="focus-exit" title="Sair do foco e mostrar todas as contas em Multi">Sair do foco</button>':'';
+      setHTML($('.panel-heading',node),`${restoreToolbar}${exitFocus}<button class="panel-profile" data-action="panel-focus" data-id="${esc(id)}" title="${esc(title)}"><span class="panel-ordinal" aria-hidden="true">${ordinal}</span><span class="panel-color-dot" data-color="${esc(p.color)}"></span><span class="panel-title"><strong>${esc(identity.name)}</strong></span>${r.notice?`<span class="panel-notice" title="${esc(r.notice)}">${icon('info')}</span>`:''}<span class="panel-connection ${identity.connection.kind==='error'?'error':''}" title="${esc(r.errorMessage||status)}">${esc(status)}</span></button><button class="icon-button panel-profile-settings" data-action="profile-edit" data-id="${esc(id)}" title="Editar perfil" aria-label="Editar ${esc(p.name)}">${icon('more')}</button>`);
       const zoom=Math.round((p.zoom||.6)*100), economy=r.stats?.economy ?? null;
       const tool=(name,title,i)=>`<button class="game-tool" data-action="game-tool" data-tool="${name}" data-id="${esc(id)}" title="${title}" aria-label="${title}">${icon(i)}<span class="tool-label">${title}</span></button>`;
       setHTML($('.panel-tools',node),`<div class="game-tool-group">${tool('items','Itens','bag')}${tool('sales','Vendas','coin')}${tool('team','Time','team')}<button class="game-tool economy-tool ${economy?'active':''}" data-action="game-tool" data-tool="economy" data-id="${esc(id)}" title="Alternar modo econômico do jogo">${icon('leaf')}<span>Eco${economy===null?'':economy?' ON':' OFF'}</span></button></div><div class="panel-controls"><span class="zoom-controls"><button class="icon-button" data-action="zoom-minus" data-id="${esc(id)}" title="Diminuir zoom" aria-label="Diminuir zoom de ${esc(p.name)}" ${zoom<=35?'disabled':''}>${icon('minus')}</button><button class="icon-button zoom-label" data-action="zoom-reset" data-id="${esc(id)}" title="Zoom ${zoom}% — clique para restaurar 60%">${zoom}%</button><button class="icon-button" data-action="zoom-plus" data-id="${esc(id)}" title="Aumentar zoom" aria-label="Aumentar zoom de ${esc(p.name)}" ${zoom>=150?'disabled':''}>${icon('plus')}</button><span class="control-separator"></span></span><button class="icon-button ${p.muted?'is-muted':''}" data-action="panel-mute" data-id="${esc(id)}" title="${p.muted?'Ativar':'Silenciar'} som" aria-label="${p.muted?'Ativar':'Silenciar'} som de ${esc(p.name)}">${icon(p.muted?'muted':'volume')}</button><button class="icon-button" data-action="panel-expand" data-id="${esc(id)}" title="Ampliar este painel" aria-label="Ampliar ${esc(p.name)}">${icon('maximize')}</button><button class="icon-button" data-action="panel-reload" data-id="${esc(id)}" title="Recarregar o jogo" aria-label="Recarregar ${esc(p.name)}">${icon('reload')}</button><button class="game-tool close-panel" data-action="panel-close" data-id="${esc(id)}" title="Fechar painel: encerra a conexão desta janela e mantém o login salvo neste computador" aria-label="Fechar ${esc(p.name)}">${icon('exit')}<span class="tool-label">Sair</span></button></div>`);
@@ -339,7 +404,7 @@
     if(!p&&state.profiles.length>=4){toast('Você já tem quatro perfis. Edite ou exclua um para criar outro.');return;}
     await openDialog('profile-dialog',()=>{
       editingProfileId=p?.id||null;
-      selectedColor=p?.color||COLORS.find(c=>!state.profiles.some(pr=>pr.color===c.value))?.value||COLORS[0].value;
+      selectedColor=COLORS.find(c=>c.value===p?.color)?.value||COLORS.find(c=>!state.profiles.some(pr=>pr.color===c.value))?.value||COLORS[0].value;
       $('#profile-name').value=p?.name||'';
       $('#profile-dialog-title').textContent=p?'Editar perfil':'Novo perfil';
       $('#profile-save-button').innerHTML=p?`Salvar alterações ${icon('check')}`:`Criar e abrir ${icon('arrow-right')}`;
@@ -480,6 +545,7 @@
         break;
       }
       case 'profile-select':await call(state.openIds.includes(id)?'panel:focus':'panel:open',{id});closeDialog();break;
+      case 'account-focus':await call('focus:enter',{id});break;
       case 'panel-focus':await call('panel:focus',{id});break;
       case 'panel-expand':await call('panel:focus',{id});await call('layout:set',{layout:'single'});break;
       case 'panel-close':await call('panel:close',{id});break;
@@ -489,6 +555,7 @@
       case 'zoom-plus':if(p)await call('panel:zoom',{id,zoom:Math.min(1.5,Math.round(((p.zoom||.6)+.1)*100)/100)});break;
       case 'zoom-reset':await call('panel:zoom',{id,zoom:.6});break;
       case 'layout':await call('layout:set',{layout:button.dataset.layout});break;
+      case 'focus-exit':await call('layout:set',{layout:'grid'});break;
       case 'open-all':for(const item of state.profiles)if(!state.openIds.includes(item.id))await call('panel:open',{id:item.id});closeDialog();break;
       case 'fullscreen':await call('window:fullscreen');break;
       case 'toolbar-toggle':await call('toolbar:toggle');break;
@@ -498,7 +565,6 @@
       case 'help-open':await openDialog('help-dialog');break;
       case 'farm-open':if(id)farmProfileId=id;await openDialog('farm-dialog');break;
       case 'dialog-close':closeDialog(button.closest('dialog'));break;
-      case 'theme':await call('settings:update',{theme:button.dataset.themeValue});break;
       case 'keep-awake':await call('settings:update',{keepAwake:!state.keepAwake});break;
       case 'data-export':await call('data:export');break;
       case 'data-import':await call('data:import');break;
@@ -524,7 +590,7 @@
     }
     if(activeDialog?.open)return;
     if((event.ctrlKey||event.metaKey)&&!event.altKey&&/^[1-4]$/.test(event.key)){
-      event.preventDefault();const id=state.openIds[Number(event.key)-1];if(id)await call('panel:focus',{id});
+      event.preventDefault();const id=state.openIds[Number(event.key)-1];if(id)await call('focus:enter',{id});
     }
   });
   hydrateIcons();

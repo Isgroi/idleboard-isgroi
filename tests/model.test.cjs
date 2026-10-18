@@ -18,7 +18,7 @@ test('restauração limita quatro perfis, elimina duplicatas e entradas inválid
   assert.equal(new Set(state.profiles.map(p => p.id)).size, 4);
   assert.equal(state.openIds.length, 4);
   assert.equal(state.focusedId, profiles[0].id);
-  assert.equal(state.theme, 'forest');
+  assert.equal(state.theme, 'blue');
   assert.equal(state.toolbarHidden, false);
   assert.equal(state.huntEnabled, true);
   const updated = m.restoreState({ ...state, toolbarHidden: true, huntEnabled: false });
@@ -27,6 +27,40 @@ test('restauração limita quatro perfis, elimina duplicatas e entradas inválid
   assert.deepEqual(updated.profiles, state.profiles);
   assert.deepEqual(updated.openIds, state.openIds);
   assert.ok(state.profiles.every(p => p.zoom >= 0.35 && p.zoom <= 1.5));
+});
+
+test('a atualização migra cores antigas para azul preservando perfis, sessões e preferências', () => {
+  const profiles = Array.from({ length: 4 }, (_, i) => ({ id: randomUUID(), name: 'Conta ' + i, color: ['#69dfb3', '#d4a6ff', '#f6c66f', '#ff9cb6'][i], zoom: 0.5 + i / 10, muted: i % 2 === 0, createdAt: 1000 + i }));
+  const raw = { profiles, openIds: profiles.map(p => p.id), focusedId: profiles[2].id, layout: 'focus', toolbarHidden: true, huntEnabled: false, keepAwake: true };
+  for (const theme of ['forest', 'ocean', 'violet']) {
+    const restored = m.restoreState({ ...raw, theme });
+    assert.equal(restored.theme, 'blue');
+    assert.deepEqual(restored.profiles, profiles.map((p, i) => ({ ...p, color: m.PROFILE_COLORS[i] })));
+    assert.deepEqual(restored.openIds, raw.openIds);
+    assert.equal(restored.focusedId, raw.focusedId);
+    assert.deepEqual(restored.profiles.map(p => m.partitionFor(p.id)), profiles.map(p => m.partitionFor(p.id)));
+    assert.equal(restored.toolbarHidden, true);
+    assert.equal(restored.huntEnabled, false);
+    assert.equal(restored.keepAwake, true);
+    assert.equal(restored.layout, 'focus');
+    assert.equal(restored.focusLayout, 'focus');
+    assert.deepEqual(m.restoreState(restored), restored, 'reopening preserves the migrated colors');
+  }
+});
+
+test('a preferência de foco persiste ao voltar ao Multi e aceita backups anteriores', () => {
+  assert.equal(m.restoreState({ layout: 'grid' }).focusLayout, 'single');
+  assert.equal(m.restoreState({ layout: 'single' }).focusLayout, 'single');
+  assert.equal(m.restoreState({ layout: 'focus' }).focusLayout, 'focus');
+  const saved = m.restoreState({ layout: 'grid', focusLayout: 'focus' });
+  assert.equal(saved.layout, 'grid');
+  assert.equal(saved.focusLayout, 'focus');
+  const restored = m.importPreferences(m.initialState(), m.exportPreferences(saved));
+  assert.equal(restored.layout, 'grid');
+  assert.equal(restored.focusLayout, 'focus');
+  m.importPreferences(restored, { app: 'IdleBoard Isgroi', schemaVersion: 1, settings: { layout: 'single' } });
+  assert.equal(restored.focusLayout, 'single');
+  assert.equal(m.restoreState({ focusLayout: 'invalid' }).focusLayout, 'single');
 });
 
 test('navegação remota só permite o jogo e rotas conhecidas dos provedores', () => {
@@ -73,7 +107,7 @@ test('importação não cria ou altera sessões e recalcula taxas dos dados brut
   const id=s.profiles[0].id;
   m.importPreferences(s,{app:'IdleBoard Isgroi',schemaVersion:1,profiles:[{id:'malicious'}],settings:{theme:'violet',keepAwake:true,toolbarHidden:true,huntEnabled:false},trials:[{id:randomUUID(),profileName:'Medição',elapsedMs:120000,trainerXp:500,pokemonXp:1000,pokemonXpPerHour:9999999,goldDelta:-50}]});
   assert.equal(s.profiles[0].id,id);
-  assert.equal(s.theme,'violet');
+  assert.equal(s.theme,'blue');
   assert.equal(s.keepAwake,false);
   assert.equal(s.toolbarHidden,true);
   assert.equal(s.huntEnabled,false);

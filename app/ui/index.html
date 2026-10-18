@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="forest">
+<html lang="pt-BR" data-theme="blue">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,22 +14,33 @@
   <div class="app-shell" id="app-shell">
     <header class="global-bar" id="global-toolbar" aria-label="Controles gerais">
       <div class="compact-brand"><span class="compact-brand-mark" aria-hidden="true">I</span><strong>IDLEBOARD</strong><span class="compact-brand-name">ISGROI</span></div>
-      <span class="bar-divider"></span><span class="general-label">GERAL</span>
-      <button class="bar-button" data-action="lives-open" title="Ver lives e abrir no navegador"><span data-icon="video"></span>Lives<span data-icon="arrow-up-right"></span></button>
-      <button class="bar-button" data-action="stones-open" title="Encontrar pedras abaixo da média do mercado"><span data-icon="gem"></span>Pedras</button>
-      <button class="bar-button" data-action="farm-open" title="Medições e histórico de farm"><span data-icon="chart"></span>Farm<span class="farm-active-dot" id="farm-active-dot" hidden></span></button>
-      <div class="bar-spacer"></div>
-      <div class="layout-switch" role="group" aria-label="Disposição dos painéis"><button data-action="layout" data-layout="grid" title="Grade" aria-label="Grade" aria-pressed="true"><span data-icon="grid"></span></button><button data-action="layout" data-layout="focus" title="Um painel em foco" aria-label="Foco" aria-pressed="false"><span data-icon="focus"></span></button><button data-action="layout" data-layout="single" title="Um painel por vez; os outros continuam abertos" aria-label="Um por vez" aria-pressed="false"><span data-icon="single"></span></button></div>
-      <span class="bar-divider"></span>
-      <button class="bar-button" data-action="profiles-open" title="Gerenciar contas e perfis"><span data-icon="team"></span>Contas<span class="count-pill" id="open-count">0</span></button>
-      <button class="bar-button bar-primary" data-action="profile-create" id="header-add"><span data-icon="plus"></span>Adicionar conta</button>
-      <button class="bar-icon" data-action="settings-open" title="Configurações" aria-label="Configurações"><span data-icon="settings"></span></button>
-      <button class="bar-icon" data-action="help-open" title="Como usar" aria-label="Como usar"><span data-icon="help"></span></button>
-      <button class="bar-icon" data-action="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia (F11)"><span data-icon="maximize"></span></button>
-      <button class="bar-icon" id="toolbar-toggle" data-action="toolbar-toggle" title="Recolher barra superior (Ctrl+Shift+B)" aria-label="Recolher barra superior (Ctrl+Shift+B)" aria-controls="global-toolbar" aria-expanded="true"><span data-icon="chevron-up"></span></button>
+      <nav class="open-account-nav" id="open-account-nav" aria-label="Abrir foco nas contas — atalhos Ctrl+1 a Ctrl+4" hidden></nav>
+      <div class="global-tools">
+        <span class="general-label">GERAL</span>
+        <button class="bar-button" data-action="lives-open" title="Ver lives e abrir no navegador" aria-label="Ver lives e abrir no navegador"><span data-icon="video"></span><span class="bar-label">Lives</span><span class="bar-external" data-icon="arrow-up-right"></span></button>
+        <button class="bar-button" data-action="stones-open" title="Encontrar pedras abaixo da média do mercado" aria-label="Encontrar pedras abaixo da média do mercado"><span data-icon="gem"></span><span class="bar-label">Pedras</span></button>
+        <button class="bar-button" data-action="farm-open" title="Medições e histórico de farm" aria-label="Medições e histórico de farm"><span data-icon="chart"></span><span class="bar-label">Farm</span><span class="farm-active-dot" id="farm-active-dot" hidden></span></button>
+        <span class="bar-divider"></span>
+        <div class="layout-switch focus-modes" role="group" aria-label="Visualização das contas"><button data-action="layout" data-layout="grid" title="Multi: mostrar todas as contas abertas" aria-label="Multi: mostrar todas as contas abertas" aria-pressed="true"><span data-icon="grid"></span><span>Multi</span></button><button data-action="layout" data-layout="single" title="Foco total: ampliar a conta selecionada; as outras continuam abertas" aria-label="Foco total" aria-pressed="false"><span data-icon="single"></span><span>Total</span></button><button data-action="layout" data-layout="focus" title="Foco dividido: metade para a conta principal, metade para as outras" aria-label="Foco dividido" aria-pressed="false"><span data-icon="focus"></span><span>Dividido</span></button></div>
+        <button class="bar-button focus-exit-button" id="global-focus-exit" data-action="focus-exit" title="Sair do foco e mostrar todas as contas em Multi" hidden><span data-icon="grid"></span><span>Sair do foco</span></button>
+        <span class="bar-divider"></span>
+        <button class="bar-button" data-action="profiles-open" title="Gerenciar contas e perfis" aria-label="Gerenciar contas e perfis"><span data-icon="team"></span><span class="bar-label">Contas</span><span class="count-pill" id="open-count">0</span></button>
+        <button class="bar-button bar-primary" data-action="profile-create" id="header-add" aria-label="Adicionar conta"><span data-icon="plus"></span><span class="bar-label">Adicionar conta</span></button>
+        <button class="bar-icon" data-action="settings-open" title="Configurações" aria-label="Configurações"><span data-icon="settings"></span></button>
+        <button class="bar-icon" data-action="help-open" title="Como usar" aria-label="Como usar"><span data-icon="help"></span></button>
+        <button class="bar-icon" data-action="fullscreen" title="Tela cheia (F11)" aria-label="Tela cheia (F11)"><span data-icon="maximize"></span></button>
+        <button class="bar-icon" id="toolbar-toggle" data-action="toolbar-toggle" title="Recolher barra superior (Ctrl+Shift+B)" aria-label="Recolher barra superior (Ctrl+Shift+B)" aria-controls="global-toolbar" aria-expanded="true"><span data-icon="chevron-up"></span></button>
+      </div>
     </header>
     <div class="preview-banner" id="preview-banner" hidden><span data-icon="info"></span><span>Prévia da interface — os jogos abrem no aplicativo Windows.</span></div>
-    <main class="main-area"><section class="game-workspace" id="game-workspace" aria-label="Painéis do jogo"></section></main>
+    <main class="main-area">
+      <aside class="account-rail" aria-label="Acesso rápido às contas">
+        <button class="rail-control" id="rail-multi" data-action="layout" data-layout="grid" title="Sair do foco — mostrar todas as contas em Multi" aria-label="Sair do foco — mostrar todas as contas em Multi" aria-pressed="true"><span data-icon="grid"></span></button>
+        <nav class="rail-account-list" id="rail-account-nav" aria-label="Contas abertas — clique para abrir o foco"></nav>
+        <div class="rail-footer"><button class="rail-control" data-action="profiles-open" title="Gerenciar contas e perfis" aria-label="Gerenciar contas e perfis"><span data-icon="team"></span></button><button class="rail-control rail-add" id="rail-add" data-action="profile-create" title="Adicionar conta" aria-label="Adicionar conta"><span data-icon="plus"></span></button></div>
+      </aside>
+      <section class="game-workspace" id="game-workspace" aria-label="Painéis do jogo"></section>
+    </main>
   </div>
 
   <dialog class="dialog profiles-dialog" id="profiles-dialog" aria-labelledby="profiles-title">
@@ -55,7 +66,6 @@
 
   <dialog class="dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><div><div class="eyebrow">SEU IDLE BOARD</div><h2 id="settings-title">Configurações</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
-    <section class="settings-section"><h3>Aparência</h3><p>Escolha a cor de destaque do seu espaço.</p><div class="theme-options" role="group" aria-label="Tema"><button class="theme-option" data-action="theme" data-theme-value="forest"><span class="theme-sample forest"></span><span>Floresta</span><span class="theme-check" data-icon="check"></span></button><button class="theme-option" data-action="theme" data-theme-value="ocean"><span class="theme-sample ocean"></span><span>Oceano</span><span class="theme-check" data-icon="check"></span></button><button class="theme-option" data-action="theme" data-theme-value="violet"><span class="theme-sample violet"></span><span>Violeta</span><span class="theme-check" data-icon="check"></span></button></div></section>
     <section class="settings-section hunt-settings" aria-labelledby="hunt-settings-title"><div class="setting-row"><div><h3 id="hunt-settings-title">/hunt for PokeIdle <span class="hunt-version">· 1.0.3</span></h3><p>Estima hunts pelo Pokémon ativo. O botão /hunt aparece dentro do jogo, com dados e preferências separados por conta.</p></div><label class="hunt-toggle" title="Carregar /hunt na próxima inicialização"><input id="hunt-enabled" type="checkbox" checked aria-describedby="hunt-settings-description"><span>Ativar</span></label></div><p class="hunt-setting-description" id="hunt-settings-description">A opção vale para a próxima inicialização do aplicativo.</p><p class="setting-note hunt-load-status" id="hunt-load-status" role="status"></p><p class="setting-note hunt-restart" id="hunt-restart" hidden><span data-icon="info"></span><span>Reabra o aplicativo para aplicar.</span></p></section>
     <section class="settings-section"><div class="setting-row"><div><h3>Manter o computador ativo</h3><p>Evita a suspensão automática enquanto o aplicativo estiver aberto. A tela ainda pode apagar.</p></div><button class="switch" id="keep-awake-toggle" data-action="keep-awake" role="switch" aria-checked="false" aria-label="Manter o computador ativo"><span></span></button></div><p class="setting-note"><span data-icon="info"></span>Fechar o aplicativo encerra as conexões. Este controle não impede desligamentos nem garante conexão com o servidor.</p></section>
     <section class="settings-section"><h3>Seus dados</h3><p>Exporte preferências de aparência, layout e medições. Perfis e sessões de login permanecem neste computador.</p><div class="data-actions"><button class="button button-subtle" data-action="data-export"><span data-icon="download"></span>Exportar preferências e medições</button><button class="button button-subtle" data-action="data-import"><span data-icon="upload"></span>Importar preferências e medições</button></div><button class="text-button" data-action="data-folder"><span data-icon="folder"></span>Abrir pasta dos dados locais<span data-icon="arrow-up-right"></span></button></section>
@@ -64,9 +74,10 @@
 
   <dialog class="dialog help-dialog" id="help-dialog" aria-labelledby="help-title">
     <div class="dialog-heading"><div><div class="eyebrow">PRONTO PARA COMEÇAR</div><h2 id="help-title">O jogo no centro.</h2></div><button class="icon-button" data-action="dialog-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
-    <div class="help-steps"><div><span class="step-number">01</span><div><h3>Crie um perfil para cada conta</h3><p>Escolha um nome e uma cor. Cada perfil guarda uma sessão própria neste computador. Você pode criar até quatro.</p></div></div><div><span class="step-number">02</span><div><h3>Entre diretamente no PokeIdle</h3><p>O jogo abre de <strong>https://pokeidle.io/app</strong>. Você não cria uma conta no IdleBoard; o login acontece dentro do jogo.</p></div></div><div><span class="step-number">03</span><div><h3>Escolha como quer jogar</h3><p>Use os três ícones no topo para Grade, Foco ou Um por vez. As outras contas seguem conectadas. Sair fecha o painel e encerra essa conexão; o login local permanece salvo. Para ganhar espaço, use F11 e recolha a barra pela seta no canto direito. A seta no primeiro painel ou Ctrl+Shift+B traz a barra de volta.</p></div></div><div><span class="step-number">04</span><div><h3>Compare o seu farm com dados reais</h3><p>Entre no jogo, escolha a hunt e inicie uma medição em Meu farm. Ao parar, o resultado observado fica salvo para comparar suas tentativas.</p></div></div></div>
+    <div class="help-steps"><div><span class="step-number">01</span><div><h3>Crie um perfil para cada conta</h3><p>Escolha um nome e uma cor. Cada perfil guarda uma sessão própria neste computador. Você pode criar até quatro.</p></div></div><div><span class="step-number">02</span><div><h3>Entre diretamente no PokeIdle</h3><p>O jogo abre de <strong>https://pokeidle.io/app</strong>. Você não cria uma conta no IdleBoard; o login acontece dentro do jogo.</p></div></div><div><span class="step-number">03</span><div><h3>Escolha como quer jogar</h3><p>Multi mostra todas as contas. Clique em uma aba ou na lateral para abrir o foco: Total amplia uma conta; Dividido usa metade da tela para ela e metade para as outras. O último tipo de foco fica memorizado. Sair do foco, ou a grade no topo da lateral, retorna ao Multi. As outras sessões continuam abertas. As abas mostram o nome do jogador quando identificado; a lateral mantém as quatro contas acessíveis mesmo com a barra recolhida.</p></div></div><div><span class="step-number">04</span><div><h3>Compare o seu farm com dados reais</h3><p>Entre no jogo, escolha a hunt e inicie uma medição em Meu farm. Ao parar, o resultado observado fica salvo para comparar suas tentativas.</p></div></div></div>
+    <p class="help-space-note">Para ganhar espaço, use F11 e recolha a barra pela seta à direita. A seta no primeiro painel ou Ctrl+Shift+B traz a barra de volta. Sair do foco também fica no cabeçalho principal quando a barra está oculta. O botão Sair de cada conta fecha essa conexão e mantém o login local salvo.</p>
     <div class="help-notice"><span data-icon="info"></span><p>Use <strong>uma janela por conta</strong>. Abrir a mesma conta em outro lugar pode interromper a sessão, conforme o comportamento do jogo.</p></div>
-    <div class="shortcut-list"><span><kbd>Ctrl</kbd> + <kbd>1–4</kbd> Selecionar painel aberto</span><span><kbd>F11</kbd> Tela cheia</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> Recolher / mostrar a barra</span><span><kbd>Esc</kbd> Fechar esta janela</span></div>
+    <div class="shortcut-list"><span><kbd>Ctrl</kbd> + <kbd>1–4</kbd> Abrir foco na conta</span><span><kbd>F11</kbd> Tela cheia</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> Recolher / mostrar a barra</span><span><kbd>Esc</kbd> Fechar esta janela</span></div>
     <div class="help-disclaimer">Projeto independente. PokeIdle e Pokémon pertencem aos seus respectivos responsáveis.</div>
   </dialog>
 

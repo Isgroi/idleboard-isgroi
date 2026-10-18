@@ -28,6 +28,7 @@ let blocker = null;
 let saveTimer = null;
 let quitting = false;
 let huntLoader;
+let requestedViewFocus = null;
 
 function persist() {
   if (!configPath) return;
@@ -160,12 +161,27 @@ function updatePowerBlocker() {
 function applyBounds() {
   if (!window || window.isDestroyed()) return;
   const size = window.getContentSize();
+  let focusTarget = null;
   for (const [id, view] of views) {
     const bounds = model.cleanBounds(lastBounds[id], size);
     const visible = !overlayVisible && !!bounds && (state.layout !== 'single' || state.focusedId === id);
     if (bounds) view.setBounds(bounds);
     view.setVisible(visible);
+    if (visible && requestedViewFocus === id && !view.webContents.isDestroyed()) focusTarget = view;
   }
+  // In single-account mode, the renderer first needs to report the new slot.
+  // Do not focus an invisible view or steal focus from an open shell dialog.
+  if (focusTarget) {
+    requestedViewFocus = null;
+    focusTarget.webContents.focus();
+  }
+}
+
+function enterFocus(id = state.focusedId || state.openIds[0]) {
+  getView(id);
+  state.focusedId = id;
+  state.layout = state.focusLayout;
+  requestedViewFocus = id;
 }
 
 function handleKeys(contents) {
@@ -188,11 +204,10 @@ function handleKeys(contents) {
       const id = state.openIds[Number(input.key) - 1];
       if (!id) return;
       event.preventDefault();
-      state.focusedId = id;
+      enterFocus(id);
       applyBounds();
       scheduleSave();
       emit();
-      views.get(id)?.webContents.focus();
     }
   });
 }
@@ -238,7 +253,7 @@ function createGameView(id) {
   } });
   views.set(id, view);
   runtime[id] = { status: 'loading', errorMessage: null, stats: null, farm: null, notice: '', hunt: { status: huntLoader.enabled ? 'loading' : 'disabled', version: HUNT_VERSION } };
-  view.setBackgroundColor('#111917');
+  view.setBackgroundColor('#0c1423');
   if (typeof view.setBorderRadius === 'function') view.setBorderRadius(8);
   view.setVisible(false);
   window.contentView.addChildView(view);
@@ -246,6 +261,15 @@ function createGameView(id) {
   contents.setAudioMuted(profile.muted);
   contents.setZoomFactor(profile.zoom);
   handleKeys(contents);
+  contents.on('focus', () => {
+    // Clicking a game in the grid updates its account tab. In focus layout,
+    // only explicit selection changes the large panel, avoiding mid-click jumps.
+    if (overlayVisible || state.layout !== 'grid' || views.get(id) !== view || contents.isDestroyed() || !state.openIds.includes(id) || state.focusedId === id) return;
+    if (requestedViewFocus && requestedViewFocus !== id) return;
+    state.focusedId = id;
+    scheduleSave();
+    emit();
+  });
   contents.on('will-navigate', (event, url) => {
     if (!model.allowedNavigation(url)) { event.preventDefault(); markBlocked(id); }
   });
@@ -298,6 +322,7 @@ function createGameView(id) {
 }
 
 function closePanel(id, reason = 'panel_closed') {
+  if (requestedViewFocus === id) requestedViewFocus = null;
   finishFarm(id, reason);
   const view = views.get(id);
   if (view) {
@@ -326,6 +351,7 @@ async function performAction(action, payload) {
       state.profiles.push(profile);
       state.openIds.push(profile.id);
       state.focusedId = profile.id;
+      requestedViewFocus = profile.id;
       createGameView(profile.id);
       break;
     }
@@ -352,13 +378,15 @@ async function performAction(action, payload) {
       getProfile(p.id);
       if (!state.openIds.includes(p.id)) state.openIds.push(p.id);
       state.focusedId = p.id;
+      requestedViewFocus = p.id;
       createGameView(p.id);
       break;
     }
     case 'panel:close': getProfile(p.id); closePanel(p.id); break;
     case 'panel:reload': finishFarm(p.id, 'reload'); navigateGame(p.id, { reload: true }); break;
     case 'panel:home': finishFarm(p.id, 'reload'); navigateGame(p.id); break;
-    case 'panel:focus': getView(p.id); state.focusedId = p.id; break;
+    case 'panel:focus': getView(p.id); state.focusedId = p.id; requestedViewFocus = p.id; break;
+    case 'focus:enter': enterFocus(p.id); break;
     case 'panel:zoom': {
       const profile = getProfile(p.id);
       profile.zoom = model.zoom(p.zoom);
@@ -371,7 +399,16 @@ async function performAction(action, payload) {
       if (views.has(p.id)) getView(p.id).webContents.setAudioMuted(profile.muted);
       break;
     }
-    case 'layout:set': if (!model.LAYOUTS.includes(p.layout)) throw new Error('Layout inválido.'); state.layout = p.layout; break;
+    case 'layout:set': {
+      if (!model.LAYOUTS.includes(p.layout)) throw new Error('Layout inválido.');
+      if (p.layout !== 'grid' && state.openIds.length === 0) throw new Error('Abra uma conta antes de entrar no foco.');
+      state.layout = p.layout;
+      if (p.layout !== 'grid') {
+        state.focusLayout = p.layout;
+        enterFocus();
+      }
+      break;
+    }
     case 'toolbar:toggle': state.toolbarHidden = !state.toolbarHidden; break;
     case 'settings:update': {
       if (p.theme !== undefined) { if (!model.THEMES.includes(p.theme)) throw new Error('Tema inválido.'); state.theme = p.theme; }
@@ -525,7 +562,7 @@ function setupLocalProtocol() {
 
 function createWindow() {
   const desktop = screen.getPrimaryDisplay().workAreaSize;
-  window = new BrowserWindow({ width: Math.min(1480, desktop.width), height: Math.min(920, desktop.height), minWidth: 1060, minHeight: 700, show: false, backgroundColor: '#101715', title: 'IdleBoard Isgroi', autoHideMenuBar: true, icon: path.join(__dirname, 'ui', 'icon.png'), webPreferences: {
+  window = new BrowserWindow({ width: Math.min(1480, desktop.width), height: Math.min(920, desktop.height), minWidth: 1060, minHeight: 700, show: false, backgroundColor: '#0c1423', title: 'IdleBoard Isgroi', autoHideMenuBar: true, icon: path.join(__dirname, 'ui', 'icon.png'), webPreferences: {
     preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true,
     nodeIntegration: false, nodeIntegrationInSubFrames: false, webSecurity: true,
     webviewTag: false, navigateOnDragDrop: false, spellcheck: false,

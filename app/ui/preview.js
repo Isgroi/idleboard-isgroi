@@ -4,19 +4,23 @@
 if (!window.idleBoard) {
   (() => {
     const STORAGE_KEY='idleboard-isgroi-interface-preview-v1';
-    const initial={version:'1.0.1',profiles:[],openIds:[],focusedId:null,layout:'grid',theme:'forest',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
+    const PROFILE_COLORS=['#77aaff','#57bbff','#6d93ff','#91c7ff','#488fe6','#779dd8'];
+    const initial={version:'1.0.3',profiles:[],openIds:[],focusedId:null,layout:'grid',focusLayout:'single',theme:'blue',keepAwake:false,sidebarCollapsed:false,toolbarHidden:false,huntEnabled:true,runtime:{},trials:[],system:{platform:'preview',electron:null,huntEnabledAtStartup:true}};
     let state={...initial};
     const listeners=new Set();
     try {
       const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
-      if(saved&&Array.isArray(saved.profiles))state={...initial,...saved,profiles:saved.profiles.slice(0,4),runtime:{},trials:[]};
+      if(saved&&Array.isArray(saved.profiles))state={...initial,...saved,profiles:saved.profiles.slice(0,4),focusLayout:['single','focus'].includes(saved.focusLayout)?saved.focusLayout:saved.layout==='focus'?'focus':'single',runtime:{},trials:[]};
     } catch { /* A private browser or malformed saved preview should still open. */ }
     state.version=initial.version;
+    state.theme='blue';
+    state.profiles=state.profiles.map((p,index)=>({...p,color:PROFILE_COLORS.includes(p.color?.toLowerCase())?p.color.toLowerCase():PROFILE_COLORS[index%PROFILE_COLORS.length]}));
     state.huntEnabled=state.huntEnabled!==false;
     state.system={...initial.system,huntEnabledAtStartup:state.huntEnabled};
     function normalize(){
       state.openIds=state.openIds.filter(id=>state.profiles.some(p=>p.id===id));
       if(!state.openIds.includes(state.focusedId))state.focusedId=state.openIds[0]||null;
+      if(!state.openIds.length)state.layout='grid';
       state.runtime=Object.fromEntries(state.openIds.map(id=>[id,{status:'ready',errorMessage:null,stats:null,farm:null,hunt:{status:'disabled',version:'1.0.3'}}]));
     }
     function snapshot(){return JSON.parse(JSON.stringify(state));}
@@ -40,10 +44,10 @@ if (!window.idleBoard) {
             const name=String(payload.name||'').trim().slice(0,32);
             if(!name)return{ok:false,error:'Digite um nome para o perfil.'};
             const id=`preview-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-            state.profiles.push({id,name,color:payload.color||'#b7e793',zoom:.6,muted:false,economy:false});
+            state.profiles.push({id,name,color:PROFILE_COLORS.includes(payload.color)?payload.color:PROFILE_COLORS[state.profiles.length%PROFILE_COLORS.length],zoom:.6,muted:false,economy:false});
             state.openIds.push(id);state.focusedId=id;break;
           }
-          case 'profile:update':if(p)Object.assign(p,{name:String(payload.name||p.name).trim().slice(0,32),color:payload.color||p.color});break;
+          case 'profile:update':if(p)Object.assign(p,{name:String(payload.name||p.name).trim().slice(0,32),color:PROFILE_COLORS.includes(payload.color)?payload.color:p.color});break;
           case 'profile:delete':
             if(!p)return{ok:false,error:'Perfil não encontrado.'};
             if(!window.confirm(`Excluir o perfil de prévia “${p.name}”? Nenhuma conta real está conectada.`))return{ok:false,canceled:true};
@@ -51,12 +55,20 @@ if (!window.idleBoard) {
           case 'panel:open':if(p&&!state.openIds.includes(p.id)){state.openIds.push(p.id);state.focusedId=p.id;}break;
           case 'panel:close':state.openIds=state.openIds.filter(id=>id!==payload.id);break;
           case 'panel:focus':if(state.openIds.includes(payload.id))state.focusedId=payload.id;break;
+          case 'focus:enter':
+            if(!state.openIds.includes(payload.id))return{ok:false,error:'Abra uma conta antes de entrar no foco.'};
+            state.focusedId=payload.id;state.layout=state.focusLayout;break;
           case 'panel:zoom':if(p)p.zoom=Math.min(1.5,Math.max(.35,Number(payload.zoom)||.6));break;
           case 'panel:mute':if(p)p.muted=Boolean(payload.muted);break;
-          case 'layout:set':if(['grid','focus','single'].includes(payload.layout))state.layout=payload.layout;break;
+          case 'layout:set':
+            if(!['grid','focus','single'].includes(payload.layout))return{ok:false,error:'Visualização inválida.'};
+            if(payload.layout!=='grid'&&!state.openIds.length)return{ok:false,error:'Abra uma conta antes de entrar no foco.'};
+            state.layout=payload.layout;
+            if(payload.layout!=='grid')state.focusLayout=payload.layout;
+            break;
           case 'toolbar:toggle':state.toolbarHidden=!state.toolbarHidden;break;
           case 'settings:update':
-            if(['forest','ocean','violet'].includes(payload.theme))state.theme=payload.theme;
+            state.theme='blue';
             if(typeof payload.sidebarCollapsed==='boolean')state.sidebarCollapsed=payload.sidebarCollapsed;
             if(typeof payload.huntEnabled==='boolean')state.huntEnabled=payload.huntEnabled;
             if(typeof payload.keepAwake==='boolean')return{ok:false,error:'Manter o computador ativo funciona no aplicativo Windows.'};

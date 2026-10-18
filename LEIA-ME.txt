@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.1
+IDLEBOARD ISGROI — 1.0.3
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR
@@ -7,26 +7,52 @@ COMEÇAR
 2. Abra IdleBoard-Isgroi.exe. Não execute dentro do ZIP e não separe o .exe das outras pastas.
 3. Clique em Contas / Adicionar conta. Escolha um nome para identificar o perfil.
 4. Entre na sua conta na página oficial do PokeIdle que aparece no painel.
-5. Repita para as outras contas. O layout Grade distribui até quatro jogos em quadrantes.
+5. Repita para as outras contas. O modo Multi distribui até quatro jogos em quadrantes.
 
 Não é necessário instalar Node, Python ou contratar um serviço. O programa usa internet
 para acessar o próprio jogo. O código do painel funciona no seu computador.
 
-BARRA COMPACTA
+BARRA COMPACTA, CONTAS E FOCO
+
+As contas abertas aparecem em abas pequenas no topo e em quadrados na lateral
+esquerda. A lateral continua visível mesmo no foco total e com a barra recolhida.
+Cada conta mostra o número do atalho (1–4), a cor e um indicador de estado. As abas
+mostram o nome do personagem quando disponível; antes do login, o nome do perfil.
+Os quadrados usam iniciais. Passe o mouse para ver nome completo e estado.
+A conta principal fica destacada. Uma conta aberta pode ainda estar na tela de login.
+
+Multi: quatro jogos em quadrantes. Clicar dentro de um jogo apenas seleciona a conta.
+Total: a conta principal ocupa toda a área de jogo; as outras sessões ficam abertas.
+Dividido: metade da largura para a principal e metade para as outras três, empilhadas.
+
+Clique em uma aba, em um quadrado da lateral ou use Ctrl+1 a Ctrl+4 para abrir o foco
+naquela conta. O aplicativo lembra sua última escolha entre Total e Dividido.
+Uma instalação nova começa com Total como preferência de foco.
+Clique em Sair do foco ou em Multi para voltar aos quadrantes.
+Trocar contas ou modos não recarrega nem fecha os jogos. No Dividido, clicar dentro
+de um jogo menor não o desloca durante a interação; use sua aba ou quadrado para
+torná-lo principal. Clicar no título de um painel apenas seleciona a conta.
 
 Recolher barra: a seta para cima no canto direito esconde toda a barra superior.
 Os quatro jogos passam a aproveitar esse espaço. Para mostrar a barra novamente,
-clique na seta para baixo na barra do primeiro quadrante ou pressione Ctrl+Shift+B.
+clique na seta para baixo no cabeçalho do primeiro painel ou pressione Ctrl+Shift+B.
 A preferência fica salva ao fechar. Sem painéis abertos, a barra sempre aparece.
+Quando a barra está recolhida, as abas do topo ficam ocultas; a lateral mantém as
+contas acessíveis. Sair do foco aparece no cabeçalho da conta principal. Os nomes
+continuam nos títulos dos quadrantes e Ctrl+1 a Ctrl+4 continua funcionando.
 F11 entra/sai da tela cheia e esconde a moldura do Windows. Use junto com a barra
 recolhida para aproveitar mais espaço, sem fechar ou recarregar as contas.
 
-Grade / Foco / Um por vez: muda a disposição. Os painéis abertos continuam funcionando.
 Lives: escolha uma conta conectada, carregue os canais e abra a live no navegador padrão.
 Pedras: escolha a conta e consulte preços diretamente na interface do Mercado do jogo.
 Contas: criar, renomear, abrir, fechar e remover os perfis locais.
 Meu farm: medir o XP observado e comparar testes de hunts.
-Configurações: Hunt, temas, manter PC ativo e exportar/importar preferências e medições.
+Configurações: Hunt, manter PC ativo e exportar/importar preferências e medições.
+
+A interface do painel usa azul, com fundo escuro e marcadores em tons de azul.
+Temas e cores de perfil antigos são convertidos automaticamente na atualização.
+Nomes, identificadores, sessões, zoom e preferência da Hunt são mantidos.
+As páginas do PokeIdle e a extensão Hunt conservam seu próprio visual.
 
 /HUNT FOR POKEIDLE
 
@@ -63,12 +89,12 @@ Time: mostra a equipe. Não troca nem vende Pokémon.
 Eco: alterna o Modo Economia oficial do jogo.
 − / porcentagem / +: zoom individual. Começa em 60% para caber mais jogo no quadrante.
 Som: liga/desliga o áudio apenas desse painel. Novos perfis começam sem som.
-Ampliar: coloca a conta em destaque individual; use Grade para voltar às quatro telas.
+Ampliar: entra no foco Total dessa conta; use Sair do foco ou Multi para voltar.
 Recarregar: recarrega aquela conta.
 Sair: fecha esse painel e encerra sua conexão. O login local pode ser reutilizado ao abrir.
 
 Atalhos: F11 alterna tela cheia. Ctrl+Shift+B mostra/esconde a barra superior.
-Ctrl+1, Ctrl+2, Ctrl+3 e Ctrl+4 selecionam painéis abertos.
+Ctrl+1, Ctrl+2, Ctrl+3 e Ctrl+4 abrem o foco nas contas correspondentes.
 
 PEDRAS ABAIXO DO MERCADO
 
@@ -155,6 +181,9 @@ Código e regras de leitura foram conferidos contra o cliente público v1.305.9 
 Foram executados testes automatizados locais de parsers, medições, controles e isolamento.
 Para Hunt, foram verificados a ordem de carregamento por sessão com objetos nativos
 simulados, o hook com mensagens sintéticas e a interface com/sem TM AoE em DOM simulado.
+Para a navegação, foi conferida a troca pelas abas, lateral e atalhos nos três modos,
+a saída do foco com barra recolhida, a atualização dos nomes e estados, a migração
+para azul e a preservação dos identificadores de sessão e do foco dos diálogos.
 Nenhuma conta real foi usada no desenvolvimento. O executável Windows não foi executado
 neste ambiente Linux. O carregamento nativo da extensão e seus cálculos com sua conta
 conectada ainda precisam ser confirmados no seu PC.
