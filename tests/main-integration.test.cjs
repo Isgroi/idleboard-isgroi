@@ -85,7 +85,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     setBackgroundColor() {} setBorderRadius() {}
   }
   const app = new EventEmitter();
-  Object.assign(app, { setName() {}, setAppUserModelId() {}, getVersion: () => '1.0.5', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
+  Object.assign(app, { setName() {}, setAppUserModelId() {}, setPath() {}, getVersion: () => '1.0.5', getPath: () => dataFolder, requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), quit() {} });
   const ipcMain = new EventEmitter();
   ipcMain.handle = (channel, callback) => handlers.set(channel, callback);
   const electron = {

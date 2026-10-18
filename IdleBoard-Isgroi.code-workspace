@@ -1,0 +1,19 @@
+{
+  "folders": [
+    { "path": "." }
+  ],
+  "settings": {
+    "files.exclude": {
+      "node_modules": true,
+      "dist": true,
+      "releases": true
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "npm.enableRunFromFolder": true
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint"
+    ]
+  }
+}

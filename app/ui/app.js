@@ -201,10 +201,12 @@
     const preserveToolbarFocus=document.hasFocus()&&!activeDialog?.open&&focusedBefore?.matches('button')&&(toolbar.contains(focusedBefore)||focusedBefore.matches('.panel-toolbar-restore,.panel-focus-exit'));
     const visibleIds=visibleOpenIds(),hideToolbar=Boolean(state.toolbarHidden)&&visibleIds.length>0;
     const farmRunning=Object.values(state.runtime).some(r=>r.farm?.running),accounts=accountViewInputs();
-    drawChanged('shell',[state.version,state.profiles.map(p=>p.id),state.openIds,state.focusedId,state.layout,hideToolbar,state.keepAwake,farmRunning],()=>{
+    drawChanged('shell',[state.version,state.system?.devMode,state.profiles.map(p=>p.id),state.openIds,state.focusedId,state.layout,hideToolbar,state.keepAwake,farmRunning],()=>{
       toolbar.hidden=hideToolbar;
       $('#toolbar-toggle').setAttribute('aria-expanded',String(!hideToolbar));
       document.documentElement.dataset.theme = 'blue';
+      document.documentElement.dataset.mode = state.system?.devMode ? 'development' : 'production';
+      $('#dev-banner').hidden = !state.system?.devMode;
       $('#app-shell').classList.toggle('has-panels',state.openIds.length>0);
       $('#preview-banner').hidden = !isPreview;
       $('#profile-count').textContent = `${state.profiles.length} / 4`;
@@ -217,7 +219,7 @@
       $('#rail-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis — gerencie as contas no botão acima' : 'Adicionar conta';
       $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
       $('#farm-active-dot').hidden = !farmRunning;
-      $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.5' : `Versão ${state.version || '1.0.5'}`;
+      $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.5' : state.system?.devMode ? `DEV · ${state.version || '1.0.5'}-dev` : `Versão ${state.version || '1.0.5'}`;
       $$('[data-action="layout"]').forEach(button=>{
         button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout));
         button.disabled=button.dataset.layout!=='grid'&&!state.openIds.length;

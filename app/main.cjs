@@ -8,8 +8,12 @@ const model = require('./model.cjs');
 const { createFarmTracker } = require('./farm-metrics.cjs');
 const { HUNT_VERSION, createHuntLoader } = require('./hunt-extension.cjs');
 
-app.setName('IdleBoard Isgroi');
-app.setAppUserModelId('br.isgroi.idleboard');
+const IS_DEV_MODE = process.env.IDLEBOARD_MODE === 'development';
+const APP_NAME = IS_DEV_MODE ? 'IdleBoard Isgroi DEV' : 'IdleBoard Isgroi';
+
+app.setName(APP_NAME);
+app.setAppUserModelId(IS_DEV_MODE ? 'br.isgroi.idleboard.dev' : 'br.isgroi.idleboard');
+if (IS_DEV_MODE) app.setPath('userData', path.join(app.getPath('appData'), 'IdleBoard Isgroi DEV'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'idleboard', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 const LOCAL_URL = 'idleboard://app/index.html';
@@ -50,7 +54,7 @@ function notifyStorageFailure() {
 }
 
 function publicState() {
-  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron, huntEnabledAtStartup: huntLoader?.enabled ?? state.huntEnabled } };
+  return { ...state, version: app.getVersion(), runtime, tools: toolsState, system: { platform: process.platform, electron: process.versions.electron, huntEnabledAtStartup: huntLoader?.enabled ?? state.huntEnabled, devMode: IS_DEV_MODE } };
 }
 
 function emit() {
@@ -635,7 +639,7 @@ function setupLocalProtocol() {
 
 function createWindow() {
   const desktop = screen.getPrimaryDisplay().workAreaSize;
-  window = new BrowserWindow({ width: Math.min(1480, desktop.width), height: Math.min(920, desktop.height), minWidth: 1060, minHeight: 700, show: false, backgroundColor: '#0c1423', title: 'IdleBoard Isgroi', autoHideMenuBar: true, icon: path.join(__dirname, 'ui', 'icon.png'), webPreferences: {
+  window = new BrowserWindow({ width: Math.min(1480, desktop.width), height: Math.min(920, desktop.height), minWidth: 1060, minHeight: 700, show: false, backgroundColor: '#0c1423', title: IS_DEV_MODE ? `IdleBoard Isgroi DEV — v${app.getVersion()}-dev` : 'IdleBoard Isgroi', autoHideMenuBar: true, icon: path.join(__dirname, 'ui', 'icon.png'), webPreferences: {
     preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true,
     nodeIntegration: false, nodeIntegrationInSubFrames: false, webSecurity: true,
     webviewTag: false, navigateOnDragDrop: false, spellcheck: false,
