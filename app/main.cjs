@@ -681,7 +681,7 @@ else {
       dialog.showErrorBox('Preferências não puderam ser lidas', 'Uma cópia do arquivo original foi preservada quando possível. O painel abrirá com preferências novas; as contas no jogo não foram alteradas.');
     }
     applyLayoutZoom();
-    huntLoader = createHuntLoader({ enabled: state.huntEnabled });
+    huntLoader = createHuntLoader({ enabled: state.huntEnabled, directory: path.join(app.getPath('userData'), 'extensions', 'hunt') });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'Aplicativo', submenu: [{ role: 'quit', label: 'Sair' }] },
       { label: 'Editar', submenu: [{ role: 'undo', label: 'Desfazer' }, { role: 'redo', label: 'Refazer' }, { type: 'separator' }, { role: 'cut', label: 'Recortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Colar' }, { role: 'selectAll', label: 'Selecionar tudo' }] },

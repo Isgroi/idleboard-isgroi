@@ -20,6 +20,10 @@ function copyIfPresent(source, destination) {
 
 if (process.platform !== 'win32') throw new Error('Este build gera o aplicativo Windows e deve ser executado no Windows.');
 if (!fs.existsSync(path.join(electronDist, 'electron.exe'))) throw new Error('Electron não instalado. Execute npm ci antes do build.');
+const extensionSource = path.join(root, 'app', 'extensions');
+if (fs.existsSync(extensionSource) && fs.readdirSync(extensionSource).length) {
+  throw new Error('O build público não pode conter arquivos de extensões de terceiros em app/extensions. Instale a extensão apenas na pasta de dados local descrita no README.');
+}
 
 assertInside(distRoot, output);
 fs.rmSync(output, { recursive: true, force: true });

@@ -55,7 +55,7 @@
     {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
     {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.5', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.7', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -293,11 +293,13 @@
     $('#hunt-restart').hidden=typeof startup!=='boolean'||enabled===startup;
     const entries=Object.entries(state.runtime).filter(([,r])=>r.hunt);
     const errors=entries.filter(([,r])=>r.hunt.status==='error');
+    const missing=entries.filter(([,r])=>r.hunt.status==='missing');
     const loaded=entries.filter(([,r])=>r.hunt.status==='loaded').length;
     const loading=entries.filter(([,r])=>r.hunt.status==='loading').length;
     const disabled=entries.filter(([,r])=>r.hunt.status==='disabled').length;
     let message;
     if(isPreview)message='A prévia não carrega a extensão. Disponível no aplicativo Windows.';
+    else if(missing.length)message='Extensão opcional não instalada. Veja no README como instalar a /hunt no seu computador.';
     else if(errors.length){
       const names=errors.map(([id])=>profile(id)?.name||'uma conta').join(', ');
       message=`Falha ao carregar a extensão em: ${names}.${loaded?` Carregada em ${loaded} ${loaded===1?'conta':'contas'}.`:''}`;
@@ -307,7 +309,7 @@
     else if(disabled)message='A extensão está desativada nas contas abertas.';
     else if(startup===true&&!state.openIds.length)message='Ativada nesta execução. Abra uma conta para carregar a extensão.';
     else message='Aguardando o estado de carregamento da extensão.';
-    $('#hunt-load-status').classList.toggle('warning',!isPreview&&errors.length>0);
+    $('#hunt-load-status').classList.toggle('warning',!isPreview&&(errors.length>0||missing.length>0));
     setHTML($('#hunt-load-status'),`${icon(!isPreview&&errors.length?'info':loading&&!isPreview?'clock':'info')}<span>${esc(message)}</span>`);
   }
   function renderPerformanceSettings() {

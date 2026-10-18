@@ -13,6 +13,9 @@ const { createRequire } = require('node:module');
 
 test('main wires isolated sessions, trusted IPC, overlays and interrupted queries', async () => {
   const dataFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'idleboard-core-test-'));
+  const huntDirectory = path.join(dataFolder, 'extensions', 'hunt');
+  fs.mkdirSync(huntDirectory, { recursive: true });
+  fs.writeFileSync(path.join(huntDirectory, 'manifest.json'), '{}');
   const appRoot = path.resolve(__dirname, '../app');
   const realRequire = createRequire(path.join(appRoot, 'main.cjs'));
   const handlers = new Map(), sessions = new Map(), createdViews = [];
@@ -49,7 +52,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     value.extensions = {
       loadExtension(directory, options) {
         value.extensionLoadCalls++;
-        assert.equal(directory, path.join(appRoot, 'extensions', 'hunt'));
+        assert.equal(directory, huntDirectory);
         assert.deepEqual(options, { allowFileAccess: false });
         return new Promise((resolve, reject) => {
           value.finishExtension = success => {

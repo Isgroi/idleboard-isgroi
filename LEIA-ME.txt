@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.5
+IDLEBOARD ISGROI — 1.0.7
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR
@@ -100,9 +100,10 @@ As páginas do PokeIdle e a extensão Hunt conservam seu próprio visual.
 
 /HUNT FOR POKEIDLE
 
-A extensão /hunt for PokeIdle, de Liang, está incluída na versão 1.0.3 com uma
-correção pequena de interface. Não é necessário instalar a extensão no Chrome
-para usá-la neste aplicativo. Ela começa ativada nos perfis do IdleBoard.
+A extensão /hunt for PokeIdle, de Liang, é opcional e NÃO está incluída neste
+pacote. Para usá-la, instale a versão 1.0.3 da Chrome Web Store e copie-a para
+sua pasta de dados local, conforme o passo a passo em codigo-fonte\README.md.
+O jogo e o IdleBoard funcionam normalmente sem ela.
 
 Entre no jogo e selecione seu Pokémon. O botão /hunt aparece dentro da página,
 junto ao card do Pokémon ativo. Ele abre a comparação de hunts e estimativas de
@@ -117,13 +118,8 @@ O estado "Carregada" confirma o carregamento do pacote, não a precisão das est
 Se o carregamento da extensão falhar, o jogo continua disponível e Configurações
 mostra o aviso. Reabra o aplicativo para tentar carregar a extensão novamente.
 
-Esta cópia não é atualizada automaticamente. Uma mudança no jogo ou na extensão
-pode exigir uma nova atualização do painel. O pacote original foi preservado em
-resources\app\extensions\hunt-original-1.0.3.crx para conferência de origem.
-O arquivo HUNT-NOTICE.txt, na mesma pasta, explica autoria, origem e adaptação.
-
-A correção remove somente uma informação de rodapé ausente que causava erro com
-TM AoE na Hunt 1.0.3. O motor, as fórmulas e os resultados não foram modificados.
+A extensão não é atualizada automaticamente pelo IdleBoard. A cópia instalada
+localmente pertence ao usuário e não deve ser colocada no repositório Git.
 
 EM CADA QUADRANTE
 
@@ -212,8 +208,9 @@ SE ALGO NÃO ABRIR
 • Atalho Itens/Vendas/Time/Eco indisponível: entre na conta e espere a interface carregar.
 • Mercado sem preço/referência: atualize a leitura; valores ausentes não viram zero.
 • O jogo mudou a interface: os atalhos e leitores podem precisar de atualização.
-• Hunt ausente: entre no jogo, selecione um Pokémon e confira Configurações > Hunt.
-  Após mudar a opção, feche e reabra o aplicativo. Na tela de login, não há botão /hunt.
+• Hunt ausente: a extensão não acompanha o pacote. Veja como instalar sua cópia
+  local em codigo-fonte\README.md. Confira também Configurações > Hunt; após mudar
+  a opção, reabra o aplicativo. Na tela de login, não há botão /hunt.
 • Hunt com erro de cálculo: os módulos ou dados do jogo podem ter mudado. A opção
   em Configurações permite desligar a extensão e aplicar ao reabrir o aplicativo.
 • Login Google/Discord depende da compatibilidade do provedor com o navegador embutido.
@@ -225,8 +222,8 @@ Código e regras de leitura foram conferidos contra o cliente público v1.305.9 
 O modo Economia, os controles de ativação e a continuidade dos contadores do HUD
 foram conferidos novamente no cliente público v1.314.2 em 18/10/2026.
 Foram executados testes automatizados locais de parsers, medições, controles e isolamento.
-Para Hunt, foram verificados a ordem de carregamento por sessão com objetos nativos
-simulados, o hook com mensagens sintéticas e a interface com/sem TM AoE em DOM simulado.
+Para Hunt, foram verificados a ausência opcional e a ordem de carregamento por
+sessão com objetos nativos simulados. A extensão original não foi incluída no teste público.
 Para a navegação, foi conferida a troca pelas abas, lateral e atalhos nos três modos,
 a saída do foco com barra recolhida, a atualização dos nomes e estados, a migração
 para azul e a preservação dos identificadores de sessão e do foco dos diálogos.

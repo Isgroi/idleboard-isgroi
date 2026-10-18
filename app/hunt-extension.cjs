@@ -1,19 +1,25 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
 
 const HUNT_VERSION = '1.0.3';
-const HUNT_DIRECTORY = path.join(__dirname, 'extensions', 'hunt');
 const FAILURE = 'A Hunt não pôde ser carregada. O jogo continua disponível. Reabra o aplicativo para tentar novamente.';
+const MISSING = 'Extensão não instalada neste computador. Veja o README para instalar a /hunt localmente.';
 
 // Extensions belong to an Electron Session. Cache registration for the lifetime
 // of this process so reopening a panel keeps its own persistent game storage.
-function createHuntLoader({ enabled = true, directory = HUNT_DIRECTORY, timeoutMs = 12000 } = {}) {
+function createHuntLoader({ enabled = true, directory, timeoutMs = 12000 } = {}) {
   const registrations = new WeakMap();
   const disabled = Object.freeze({ status: 'disabled', version: HUNT_VERSION });
   function load(ses) {
     if (!enabled) return Promise.resolve(disabled);
     if (registrations.has(ses)) return registrations.get(ses);
+    if (!directory || !fs.existsSync(path.join(directory, 'manifest.json'))) {
+      const missing = Promise.resolve({ status: 'missing', version: HUNT_VERSION, error: MISSING });
+      registrations.set(ses, missing);
+      return missing;
+    }
     const registration = new Promise(resolve => {
       let finished = false;
       const complete = result => {
@@ -45,4 +51,4 @@ function createHuntLoader({ enabled = true, directory = HUNT_DIRECTORY, timeoutM
   return { enabled, load };
 }
 
-module.exports = { HUNT_VERSION, HUNT_DIRECTORY, createHuntLoader };
+module.exports = { HUNT_VERSION, createHuntLoader };

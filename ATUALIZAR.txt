@@ -1,118 +1,16 @@
-ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.5
+ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.7
 
-NOVIDADES
+1. Feche o IdleBoard Isgroi.
+2. Extraia o ZIP completo para uma pasta sua. Não execute o programa dentro do ZIP.
+3. Abra IdleBoard-Isgroi.exe da pasta extraída.
 
-DESEMPENHO
+As sessões e preferências continuam na pasta de dados do Windows, separadas do
+programa. Não copie seus cookies, sessões ou credenciais para a pasta do projeto,
+para o ZIP ou para o GitHub.
 
-Configurações > Desempenho > Ativar Eco nas contas abertas.
-O botão ativa o Modo Economia oficial nas contas disponíveis e mostra quantas
-confirmaram Eco ativo. O cenário fica simplificado; a caça e as leituras do Meu Farm
-continuam. Cada conta mantém a própria preferência nos dados locais do jogo.
+A extensão /hunt for PokeIdle é opcional e não está incluída neste pacote.
+O aplicativo e o jogo funcionam sem ela. Para instalar sua própria cópia local,
+consulte codigo-fonte\README.md, na seção "Extensão /hunt". Não publique a
+extensão nem seu arquivo .crx com o código do IdleBoard.
 
-Contas já em Eco permanecem assim. Contas desconectadas, com consulta em andamento
-ou com um modal do jogo aberto são mantidas como estão. Feche o menu ou aguarde
-a consulta terminar e tente novamente nas contas restantes. O painel mostra o aviso.
-Use Eco no cabeçalho de cada conta para voltar ao visual normal individualmente.
-O aplicativo não ativa Eco sozinho ao abrir, trocar de conta ou mudar de layout.
-
-Medições visuais de campo/abates da extensão Hunt podem ficar sem novas amostras
-durante o Eco. Para calibrar essas medições, use a cena normal. Meu Farm continua
-usando o XP e os saldos do HUD, que o jogo mantém atualizados no modo Economia.
-
-O painel também passou a evitar renderizações, medições de posição e comandos
-de redimensionamento repetidos. Atualizações próximas das contas são agrupadas,
-e medições de farm já encerradas não disparam atualizações periódicas inúteis.
-Essas melhorias são automáticas. As quatro sessões continuam abertas e o zoom
-automático 100%/60% permanece funcionando como antes.
-
-No teste sintético de 120 atualizações das quatro contas, com diálogos fechados,
-as leituras repetidas de posição passaram de 480 para 0 e os envios de tamanho
-de 120 para 0. Isso mede operações eliminadas, não uma porcentagem de redução de
-CPU ou RAM no Windows. O ganho real varia conforme o computador e o estado do jogo.
-
-MELHORIAS ANTERIORES INCLUÍDAS
-
-Zoom automático por modo:
-• Total (uma conta focada): 100% na conta exibida.
-• Multi (quadrantes): 60% em todas as contas abertas.
-• Dividido: 60% nos painéis.
-
-A regra vale ao trocar de modo, ampliar um painel e selecionar outra conta em Total
-pelas abas, lateral ou Ctrl+1 a Ctrl+4. Ao sair do foco, as quatro voltam a 60%.
-Abrir o aplicativo aplica o padrão do modo salvo. As sessões não são recarregadas
-ao alternar a visualização ou o zoom.
-
-Você ainda pode ajustar o zoom com − e +. Atualizações normais de estado e o clique
-no modo/conta que já está ativo mantêm esse ajuste. A próxima troca de modo, troca
-da conta em Total ou reabertura do aplicativo aplica o zoom automático novamente.
-Clicar na porcentagem restaura 100% em Total ou 60% nos outros modos.
-
-A interface azul, as contas e a configuração da Hunt são mantidas.
-Esta atualização também inclui as melhorias das versões anteriores:
-
-As quatro contas abertas aparecem em quadrados na lateral esquerda, sempre visíveis,
-e em abas compactas no topo, com nome do personagem quando disponível e estado.
-Uma conta aberta pode ainda estar na tela de login. A conta principal fica destacada.
-
-Multi: quatro quadrantes. Clicar dentro de um jogo apenas seleciona a conta.
-Total: uma conta ocupa toda a área de jogo, com as demais sessões abertas.
-Dividido: metade para a principal e metade para as outras três, uma sobre a outra.
-
-Clique em uma aba ou quadrado lateral para entrar no foco da conta escolhida.
-Ctrl+1 a Ctrl+4 faz o mesmo. O programa lembra a preferência Total ou Dividido.
-Sair do foco ou Multi volta aos quadrantes. Trocar modos não recarrega as contas.
-
-Você ainda pode recolher completamente a barra superior (Lives / Pedras / Contas / abas).
-Clique na seta para cima à direita. Para restaurar, use a seta para baixo na barra
-do primeiro painel ou Ctrl+Shift+B. A escolha fica salva ao fechar o programa.
-A lateral permanece disponível; no foco, Sair do foco aparece junto à conta principal.
-Use F11 junto com a barra recolhida para esconder também a moldura do Windows.
-
-A extensão /hunt for PokeIdle 1.0.3, de Liang, continua incluída. Se já havia configurado
-a Hunt na versão 1.0.1, sua escolha é mantida. Em uma instalação nova ela começa ativada.
-Depois de entrar no jogo, use o botão /hunt junto ao Pokémon ativo.
-Não precisa instalar no Chrome. Em Configurações você pode desligar/ligar a Hunt;
-feche e reabra o aplicativo para aplicar. Essa mudança não recarrega os jogos na hora.
-
-Foi corrigido um erro de interface da extensão ao exibir resultados com TM AoE,
-sem alterar as fórmulas do motor. Veja LEIA-ME.txt e resources\app\extensions\HUNT-NOTICE.txt.
-
-SE VOCÊ BAIXOU A ATUALIZAÇÃO PEQUENA
-
-1. Feche o IdleBoard Isgroi pelo X da janela.
-2. Extraia TODO o arquivo Atualizacao-IdleBoard-1.0.5.zip.
-3. Abra a pasta em que está o seu IdleBoard-Isgroi.exe.
-4. Copie para essa pasta TODO o conteúdo da atualização extraída, incluindo as
-   pastas resources e codigo-fonte. Confirme a substituição dos arquivos existentes.
-5. Abra novamente o MESMO IdleBoard-Isgroi.exe.
-
-A atualização pequena não contém um executável novo: ela atualiza os arquivos
-usados pelo executável das versões 1.0.0 a 1.0.4. Copie para a pasta existente.
-Em Configurações, a versão exibida depois da atualização deve ser 1.0.5.
-Se aparecer uma versão anterior, confira se resources\app foi substituída na pasta do executável
-que você está abrindo. Não crie uma pasta resources dentro de outra resources.
-
-SE VOCÊ BAIXOU O PACOTE COMPLETO
-
-Feche o programa anterior, extraia a pasta inteira do novo pacote e abra o
-IdleBoard-Isgroi.exe da pasta nova. Não execute de dentro do ZIP.
-
-SUAS CONTAS E SESSÕES
-
-Esta atualização mantém o mesmo nome de aplicativo e os mesmos identificadores
-dos perfis. Continua usando a pasta de dados do seu usuário do Windows, separada
-da pasta do executável. Não é necessário excluir ou criar os perfis novamente.
-
-Não apague a pasta de dados locais e não use Excluir perfil para atualizar.
-O PokeIdle ainda pode pedir login se a sessão tiver expirado ou sido invalidada.
-
-Os arquivos da atualização não incluem os seus cookies, tokens ou senhas.
-
-TESTES
-
-Os testes locais de integração e da interface passaram, usando sessões e dados
-simulados. Foram incluídos cenários de Eco já ativo, controle oculto, conta ocupada,
-falta de conexão, interrupção manual e confirmação assíncrona, além das mudanças
-de layout e geometria. Não foi possível executar o programa Windows neste ambiente nem entrar
-em uma conta real. O funcionamento da Hunt no jogo conectado precisa ser confirmado
-na sua instalação. Se houver falha na extensão, o jogo ainda pode abrir normalmente.
+O modo DEV usa uma pasta de dados separada do aplicativo estável.
