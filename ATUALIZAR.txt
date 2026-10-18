@@ -1,4 +1,4 @@
-ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.7
+ATUALIZAÇÃO DO IDLEBOARD ISGROI — 1.0.8
 
 1. Feche o IdleBoard Isgroi.
 2. Extraia o ZIP completo para uma pasta sua. Não execute o programa dentro do ZIP.

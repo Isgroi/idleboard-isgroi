@@ -55,7 +55,7 @@
     {value:'#77aaff',name:'Azul'}, {value:'#57bbff',name:'Celeste'}, {value:'#6d93ff',name:'Índigo'},
     {value:'#91c7ff',name:'Azul claro'}, {value:'#488fe6',name:'Azul intenso'}, {value:'#779dd8',name:'Azul suave'}
   ];
-  const defaults = { version:'1.0.7', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
+  const defaults = { version:'1.0.8', profiles:[], openIds:[], focusedId:null, layout:'grid', focusLayout:'single', theme:'blue', keepAwake:false, sidebarCollapsed:false, toolbarHidden:false, huntEnabled:true, runtime:{}, trials:[], system:{} };
   let state = {...defaults};
   let editingProfileId = null;
   let selectedColor = COLORS[0].value;
@@ -219,7 +219,10 @@
       $('#rail-add').title = state.profiles.length>=4 ? 'Limite de quatro perfis — gerencie as contas no botão acima' : 'Adicionar conta';
       $('#open-all-button').disabled = !state.profiles.length || state.profiles.every(p=>state.openIds.includes(p.id));
       $('#farm-active-dot').hidden = !farmRunning;
-      $('#about-version').textContent = isPreview ? 'Prévia da interface · 1.0.5' : state.system?.devMode ? `DEV · ${state.version || '1.0.5'}-dev` : `Versão ${state.version || '1.0.5'}`;
+      const versionLabel = `v${state.version || defaults.version}${state.system?.devMode ? '-dev' : ''}`;
+      $('#app-version').textContent = versionLabel;
+      document.title = `IdleBoard Isgroi${state.system?.devMode ? ' DEV' : ''} — ${versionLabel}`;
+      $('#about-version').textContent = isPreview ? `Prévia da interface · ${state.version || defaults.version}` : state.system?.devMode ? `DEV · ${state.version || defaults.version}-dev` : `Versão ${state.version || defaults.version}`;
       $$('[data-action="layout"]').forEach(button=>{
         button.setAttribute('aria-pressed',String(button.dataset.layout===state.layout));
         button.disabled=button.dataset.layout!=='grid'&&!state.openIds.length;

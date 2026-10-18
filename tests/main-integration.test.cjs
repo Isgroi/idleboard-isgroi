@@ -113,6 +113,7 @@ test('main wires isolated sessions, trusted IPC, overlays and interrupted querie
     const ui = () => ({ sender: win.webContents, senderFrame: win.webContents.mainFrame });
     const action = (name, payload) => handlers.get('board:action')(ui(), name, payload);
     const current = () => handlers.get('board:state')(ui());
+    assert.equal(win.options.title, 'IdleBoard Isgroi — v1.0.5');
     assert.equal(current().theme, 'blue');
     assert.equal(current().focusLayout, 'single');
     assert.equal((await action('focus:enter')).ok, false);

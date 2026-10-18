@@ -1,4 +1,4 @@
-IDLEBOARD ISGROI — 1.0.7
+IDLEBOARD ISGROI — 1.0.8
 Painel pessoal para PokeIdle.io • Windows 10/11, 64 bits
 
 COMEÇAR

@@ -18,29 +18,28 @@ Aplicativo Windows local para organizar até quatro sessões do PokeIdle em pain
 - `npm.cmd run build`: valida o JavaScript e gera `dist/IdleBoard-Isgroi/IdleBoard-Isgroi.exe`.
 - `npm.cmd run release`: exige o Git limpo, testa, gera o build, cria o ZIP em `releases/v<versão>/` e cria a tag da versão quando necessário. Um ZIP já existente é preservado.
 
-## Publicação inicial no GitHub
+## Publicação no GitHub
 
-O histórico público foi reconstruído a partir das cópias reais das versões 1.0.0, 1.0.1, 1.0.3, 1.0.5 e 1.0.6. Veja [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md): 1.0.2 e 1.0.4 não têm cópia verificada. O histórico privado antigo, que continha a extensão, ficou guardado **fora do projeto**. Não importe nem envie esse histórico e não use `git push --mirror` da cópia antiga.
+O histórico público foi reconstruído a partir das cópias reais das versões 1.0.0, 1.0.1, 1.0.3, 1.0.5 e 1.0.6. Veja [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md): 1.0.2 e 1.0.4 não têm cópia verificada. O histórico privado antigo, que continha a extensão, ficou guardado **fora do projeto**. Não importe nem envie esse histórico e não use `git push --mirror` da cópia antiga. A versão 1.0.7 já tem commit e tag no GitHub; alterações posteriores pertencem à 1.0.8.
 
-No terminal do VS Code, dentro da pasta do projeto, confira os arquivos e faça você mesmo o commit da 1.0.7 e o envio:
+Para a próxima versão, confira as alterações no terminal do VS Code e faça o commit você mesmo:
 
 ```powershell
 git status
-git add .
+git add app tests package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
 git diff --cached --name-only
-git commit -m "release: prepare IdleBoard 1.0.7 for public release" -m "PT-BR: versão pública sem a extensão de terceiros; documentação em português e inglês."
-git push -u origin main
-git push origin v1.0.0 v1.0.1 v1.0.3 v1.0.5 v1.0.6
+git commit -m "feat: show app version beside the name"
 ```
 
-Depois, para gerar o ZIP desta versão e publicar **somente** a tag nova:
+Depois, para gerar o ZIP da 1.0.8 e publicar a branch e **somente** a tag nova:
 
 ```powershell
 npm.cmd run release
-git push origin v1.0.7
+git push origin main
+git push origin v1.0.8
 ```
 
-O ZIP gerado fica em `releases/v1.0.7/` e não é enviado automaticamente ao GitHub. Antes de anexá-lo manualmente a uma Release, confira que não contém a extensão nem seus dados pessoais. Não publique os ZIPs históricos originais: alguns contêm a extensão. Se algum comando apresentar erro, pare e confira a mensagem antes de continuar.
+O ZIP gerado fica em `releases/v1.0.8/` e não é enviado automaticamente ao GitHub. Antes de anexá-lo manualmente a uma Release, confira que não contém a extensão nem seus dados pessoais. Não publique os ZIPs históricos originais: alguns contêm a extensão. Se algum comando apresentar erro, pare e confira a mensagem antes de continuar.
 
 ## Dados privados
 
@@ -89,26 +88,25 @@ IdleBoard Isgroi is a local Windows app for arranging up to four separate PokeId
 - `npm.cmd run build` checks the JavaScript and creates `dist/IdleBoard-Isgroi/IdleBoard-Isgroi.exe`.
 - `npm.cmd run release` requires a clean Git working tree, runs the tests and build, creates a ZIP under `releases/v<version>/`, and creates the version tag if needed. It will not overwrite an existing ZIP.
 
-### Public GitHub history
+### GitHub publishing
 
-The public history was reconstructed from verified copies of versions 1.0.0, 1.0.1, 1.0.3, 1.0.5, and 1.0.6. Versions 1.0.2 and 1.0.4 are not tagged because no verified copies were available. See [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md). The old private history contained the third-party extension; do not import or push it.
+The public history was reconstructed from verified copies of versions 1.0.0, 1.0.1, 1.0.3, 1.0.5, and 1.0.6. Versions 1.0.2 and 1.0.4 are not tagged because no verified copies were available. See [HISTORICO-PUBLICO.md](HISTORICO-PUBLICO.md). The old private history contained the third-party extension; do not import or push it. Version 1.0.7 already has a commit and tag on GitHub; later changes belong to 1.0.8.
 
-From the project folder in VS Code, review and commit version 1.0.7, then push the branch and only the listed public-safe historical tags:
+For the next version, review your changes in VS Code and make the commit yourself:
 
 ```powershell
 git status
-git add .
+git add app tests package.json package-lock.json README.md LEIA-ME.txt ATUALIZAR.txt
 git diff --cached --name-only
-git commit -m "release: prepare IdleBoard 1.0.7 for public release" -m "PT-BR: versão pública sem a extensão de terceiros; documentação em português e inglês."
-git push -u origin main
-git push origin v1.0.0 v1.0.1 v1.0.3 v1.0.5 v1.0.6
+git commit -m "feat: show app version beside the name"
 ```
 
-After the commit, create this version's ZIP and push its new tag:
+After the commit, create the 1.0.8 ZIP and push the branch and its new tag:
 
 ```powershell
 npm.cmd run release
-git push origin v1.0.7
+git push origin main
+git push origin v1.0.8
 ```
 
 The ZIP is not uploaded to GitHub automatically. Inspect it before attaching it to a GitHub Release. Do not publish the original historical ZIPs: some contain the third-party extension.
